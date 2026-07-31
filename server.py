@@ -59,7 +59,16 @@ DEFAULTS = {
     "dndUntil": 0,                  # timestamp di fine "non disturbare" (0 = off)
     "autostart": False,
     "alwaysOnTop": True,
-    "opacity": 1.0,
+
+    # --- posizione e comportamento della finestra ---
+    "layout": "full",               # full | half | tophalf | libero
+    "screen": -1,                   # -1 = schermo principale, altrimenti indice
+    "side": "right",                # right | left
+    "width": 340,
+    "autoFade": True,               # si smaterializza mentre lavori altrove
+    "fadeOpacity": 0.32,
+    "eyesFollow": True,             # gli occhi seguono il mouse
+    "clickThrough": True,           # i click passano dove non c'e' niente disegnato
 }
 
 _tail_cache = {}   # sessionId -> (mtime, size, parsed)

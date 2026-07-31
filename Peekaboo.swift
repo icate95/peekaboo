@@ -1,32 +1,31 @@
 // Peekaboo — guscio nativo del fantasmino.
 //
-// Una finestra senza bordi, con sfondo trasparente, sempre sopra le altre,
-// trascinabile e ridimensionabile; piu' un'icona nella barra in alto, le
-// notifiche di sistema e una scorciatoia globale da tastiera.
+// Una finestra senza bordi e trasparente, sempre sopra le altre, che puo'
+// occupare una colonna dello schermo che scegli tu; piu' l'icona nella barra,
+// le notifiche di sistema, la scorciatoia globale, gli occhi che seguono il
+// mouse e il rilevamento di microfono e telecamera.
 // La grafica vera vive nella WKWebView (ui/index.html).
 //
 // Compila con:  ./build.sh
 
 import AppKit
 import Carbon.HIToolbox
+import CoreAudio
+import CoreMediaIO
 import UserNotifications
 import WebKit
 
 let PORT = ProcessInfo.processInfo.environment["PEEKABOO_PORT"] ?? "8787"
 let BASE = "http://127.0.0.1:\(PORT)"
 
-let MIN_SIZE = NSSize(width: 260, height: 220)
+let MIN_SIZE = NSSize(width: 240, height: 200)
 let HOTKEY_ID: UInt32 = 1
-
-// MARK: - Finestra
 
 /// Senza questo una finestra .borderless non riceve mai i click.
 final class GhostWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 }
-
-// MARK: - App
 
 final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
                  NSMenuDelegate, UNUserNotificationCenterDelegate {
@@ -35,8 +34,6 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
     var web: WKWebView!
     var status: NSStatusItem!
 
-    // trascinamento e ridimensionamento manuali: la WKWebView si mangia
-    // gli eventi nativi, quindi li pilota la JS e li eseguiamo qui
     private enum Grab { case none, move, resize }
     private var grab = Grab.none
     private var grabMouse = NSPoint.zero
@@ -44,10 +41,20 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
 
     private var snapshot: [String: Any] = [:]
     private var settings: [String: Any] = [:]
-    private var lastStates: [Int: String] = [:]     // pid -> stato precedente
+    private var lastStates: [Int: String] = [:]
     private var lastForgottenNote = Date.distantPast
     private var notificationsReady = false
     private var firstPoll = true
+
+    /// Rettangoli "solidi" comunicati dalla UI, in coordinate CSS.
+    /// Servono a far passare i click dove non c'e' niente disegnato.
+    private var solidRects: [NSRect] = []
+    private var ignoring = false
+    private var appIsFront = true
+    private var mouseInside = false
+    private var lastLook = Date.distantPast
+
+    private var micOn = false, camOn = false
 
     // MARK: avvio
 
@@ -68,33 +75,36 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         buildWindow()
         buildStatusItem()
         installGrabMonitors()
+        installMouseMonitor()
         installHotkey()
+        watchFrontmostApp()
         askNotificationPermission()
+
         poll()
-        Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
-            self?.poll()
-        }
+        Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.poll() }
+        Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in self?.checkDevices() }
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil, queue: .main) { [weak self] _ in
+                self?.applyLayout(); self?.pushScreens()
+            }
     }
 
-    // MARK: finestra
+    // MARK: finestra e disposizione
 
     private func buildWindow() {
         let cfg = WKWebViewConfiguration()
         cfg.userContentController.add(self, name: "app")
 
-        let saved = UserDefaults.standard.string(forKey: "frame")
-        let frame = saved.map(NSRectFromString) ?? defaultFrame()
-
-        web = WKWebView(frame: NSRect(origin: .zero, size: frame.size), configuration: cfg)
-        web.setValue(false, forKey: "drawsBackground")      // sfondo trasparente
+        web = WKWebView(frame: .zero, configuration: cfg)
+        web.setValue(false, forKey: "drawsBackground")
         if #available(macOS 12.0, *) { web.underPageBackgroundColor = .clear }
         web.autoresizingMask = [.width, .height]
         web.load(URLRequest(url: URL(string: BASE)!))
 
-        window = GhostWindow(contentRect: frame,
+        window = GhostWindow(contentRect: NSRect(x: 0, y: 0, width: 340, height: 600),
                              styleMask: [.borderless, .resizable],
-                             backing: .buffered,
-                             defer: false)
+                             backing: .buffered, defer: false)
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = false
@@ -103,20 +113,49 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         window.contentView = web
         window.isReleasedWhenClosed = false
         window.minSize = MIN_SIZE
-        window.setFrame(clamp(frame), display: true)
+        applyLayout()
         window.makeKeyAndOrderFront(nil)
     }
 
-    private func defaultFrame() -> NSRect {
-        let vis = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let size = NSSize(width: 340, height: min(580, vis.height - 48))
-        return NSRect(x: vis.maxX - size.width - 24, y: vis.minY + 24,
-                      width: size.width, height: size.height)
+    /// Lo schermo scelto nelle impostazioni (-1 = quello principale).
+    private func chosenScreen() -> NSScreen {
+        let idx = settings["screen"] as? Int ?? -1
+        let all = NSScreen.screens
+        if idx >= 0 && idx < all.count { return all[idx] }
+        return NSScreen.main ?? all.first!
     }
 
-    /// Tiene la finestra dentro lo schermo e mai piu' alta del desktop utile.
+    /// Colloca la finestra secondo il preset scelto. "libero" lascia fare a te.
+    private func applyLayout(save: Bool = false) {
+        let layout = settings["layout"] as? String ?? "full"
+        let vis = chosenScreen().visibleFrame
+        let side = settings["side"] as? String ?? "right"
+        let width = min(max(CGFloat(settings["width"] as? Double ?? 340), MIN_SIZE.width),
+                        vis.width)
+
+        if layout == "libero" {
+            if let s = UserDefaults.standard.string(forKey: "frame") {
+                window.setFrame(clamp(NSRectFromString(s)), display: true)
+            }
+            return
+        }
+
+        var r = NSRect(x: side == "right" ? vis.maxX - width : vis.minX,
+                       y: vis.minY, width: width, height: vis.height)
+        switch layout {
+        case "half":                                    // meta' bassa
+            r.size.height = vis.height / 2
+        case "tophalf":                                 // meta' alta
+            r.size.height = vis.height / 2
+            r.origin.y = vis.midY
+        default: break                                  // "full": tutta l'altezza
+        }
+        window.setFrame(r, display: true, animate: false)
+        if save { saveFrame() }
+    }
+
     private func clamp(_ f: NSRect) -> NSRect {
-        guard let vis = (window?.screen ?? NSScreen.main)?.visibleFrame else { return f }
+        let vis = chosenScreen().visibleFrame
         var r = f
         r.size.width = max(MIN_SIZE.width, min(r.width, vis.width))
         r.size.height = max(MIN_SIZE.height, min(r.height, vis.height))
@@ -129,50 +168,160 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         UserDefaults.standard.set(NSStringFromRect(window.frame), forKey: "frame")
     }
 
-    /// Espande la finestra a tutta l'altezza utile dello schermo.
-    private func fullHeight() {
-        guard let vis = (window.screen ?? NSScreen.main)?.visibleFrame else { return }
-        let isTall = window.frame.height >= vis.height - 4
-        var r = window.frame
-        if isTall {                                  // gia' alta: torna a misura comoda
-            r.size.height = min(580, vis.height - 48)
-            r.origin.y = vis.minY + 24
-        } else {
-            r.size.height = vis.height
-            r.origin.y = vis.minY
-        }
-        window.setFrame(clamp(r), display: true, animate: true)
-        saveFrame()
-    }
-
-    /// La JS segnala l'inizio del gesto, qui seguiamo il mouse.
     private func installGrabMonitors() {
         NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDragged]) { [weak self] ev in
             guard let self, self.grab != .none else { return ev }
             let now = NSEvent.mouseLocation
             let dx = now.x - self.grabMouse.x, dy = now.y - self.grabMouse.y
             var r = self.grabFrame
-
             switch self.grab {
-            case .move:
-                r.origin = NSPoint(x: r.origin.x + dx, y: r.origin.y + dy)
+            case .move:   r.origin = NSPoint(x: r.origin.x + dx, y: r.origin.y + dy)
             case .resize:
-                // maniglia in basso a destra: il bordo alto resta fermo
                 r.size.width = max(MIN_SIZE.width, r.width + dx)
                 r.size.height = max(MIN_SIZE.height, r.height - dy)
                 r.origin.y = self.grabFrame.maxY - r.height
-            case .none:
-                break
+            case .none: break
             }
             self.window.setFrame(self.clamp(r), display: true)
             return ev
         }
         NSEvent.addLocalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] ev in
             guard let self else { return ev }
-            if self.grab != .none { self.saveFrame() }
+            if self.grab != .none {
+                self.saveFrame()
+                // Spostarla a mano significa volerla libera.
+                if (self.settings["layout"] as? String ?? "full") != "libero" {
+                    self.postSettings(["layout": "libero"])
+                }
+            }
             self.grab = .none
             return ev
         }
+    }
+
+    // MARK: mouse — occhi che seguono, click che attraversano, dissolvenza
+
+    private func installMouseMonitor() {
+        let handler: (NSEvent) -> Void = { [weak self] _ in self?.mouseMoved() }
+        NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { handler($0) }
+        NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { ev in handler(ev); return ev }
+    }
+
+    private func mouseMoved() {
+        let p = NSEvent.mouseLocation
+        let f = window.frame
+        mouseInside = f.contains(p)
+
+        // punto in coordinate CSS (origine in alto a sinistra)
+        let cx = p.x - f.minX
+        let cy = f.maxY - p.y
+
+        if settings["clickThrough"] as? Bool ?? true {
+            let solid = mouseInside && solidRects.contains { $0.contains(NSPoint(x: cx, y: cy)) }
+            setIgnoring(!solid)
+        } else {
+            setIgnoring(false)
+        }
+        updateAlpha()
+
+        // Gli occhi seguono il mouse anche fuori dalla finestra, ma senza
+        // sommergere la WebView di chiamate.
+        guard settings["eyesFollow"] as? Bool ?? true,
+              Date().timeIntervalSince(lastLook) > 0.05 else { return }
+        lastLook = Date()
+        web.evaluateJavaScript("window.lookAt&&lookAt(\(Int(cx)),\(Int(cy)))")
+    }
+
+    private func setIgnoring(_ v: Bool) {
+        guard v != ignoring else { return }
+        ignoring = v
+        window.ignoresMouseEvents = v
+    }
+
+    private func watchFrontmostApp() {
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil, queue: .main) { [weak self] note in
+                guard let self else { return }
+                let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+                self.appIsFront = app?.processIdentifier == NSRunningApplication.current.processIdentifier
+                self.updateAlpha()
+            }
+    }
+
+    /// Si smaterializza mentre lavori altrove, torna appena ti avvicini.
+    private func updateAlpha() {
+        let fade = settings["autoFade"] as? Bool ?? true
+        let dim = CGFloat(settings["fadeOpacity"] as? Double ?? 0.32)
+        let want: CGFloat = (fade && !appIsFront && !mouseInside) ? dim : 1.0
+        guard abs(window.alphaValue - want) > 0.01 else { return }
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.35
+            window.animator().alphaValue = want
+        }
+    }
+
+    // MARK: microfono e telecamera
+    //
+    // Nessun permesso richiesto: chiediamo al sistema se il dispositivo sta
+    // girando "da qualche parte", senza mai aprire un flusso.
+
+    private func micIsOn() -> Bool {
+        var id = AudioDeviceID(0)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        var addr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject),
+                                         &addr, 0, nil, &size, &id) == noErr, id != 0
+        else { return false }
+
+        var running: UInt32 = 0
+        size = UInt32(MemoryLayout<UInt32>.size)
+        addr = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyDeviceIsRunningSomewhere,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        guard AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &running) == noErr
+        else { return false }
+        return running != 0
+    }
+
+    private func camIsOn() -> Bool {
+        var addr = CMIOObjectPropertyAddress(
+            mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyDevices),
+            mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
+            mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain))
+        var size: UInt32 = 0
+        guard CMIOObjectGetPropertyDataSize(CMIOObjectID(kCMIOObjectSystemObject),
+                                            &addr, 0, nil, &size) == noErr, size > 0
+        else { return false }
+
+        let count = Int(size) / MemoryLayout<CMIOObjectID>.size
+        var devices = [CMIOObjectID](repeating: 0, count: count)
+        var used: UInt32 = 0
+        guard CMIOObjectGetPropertyData(CMIOObjectID(kCMIOObjectSystemObject), &addr, 0, nil,
+                                        size, &used, &devices) == noErr else { return false }
+
+        for dev in devices {
+            var running: UInt32 = 0
+            var rSize = UInt32(MemoryLayout<UInt32>.size)
+            var rAddr = CMIOObjectPropertyAddress(
+                mSelector: CMIOObjectPropertySelector(kCMIODevicePropertyDeviceIsRunningSomewhere),
+                mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeWildcard),
+                mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementWildcard))
+            if CMIOObjectGetPropertyData(dev, &rAddr, 0, nil, rSize, &rSize, &running) == noErr,
+               running != 0 { return true }
+        }
+        return false
+    }
+
+    private func checkDevices() {
+        let m = micIsOn(), c = camIsOn()
+        guard m != micOn || c != camOn else { return }
+        micOn = m; camOn = c
+        web.evaluateJavaScript("window.setDevices&&setDevices(\(m),\(c))")
     }
 
     // MARK: messaggi dalla UI
@@ -185,27 +334,65 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
             grab = .move; grabMouse = NSEvent.mouseLocation; grabFrame = window.frame
         case "resizestart":
             grab = .resize; grabMouse = NSEvent.mouseLocation; grabFrame = window.frame
-        case "fullheight":
-            fullHeight()
         case "settings":
-            if let s = body["settings"] as? [String: Any] { apply(settings: s) }
+            if let s = body["settings"] as? [String: Any] {
+                let oldLayout = settings["layout"] as? String
+                let oldScreen = settings["screen"] as? Int
+                let oldSide = settings["side"] as? String
+                apply(settings: s)
+                if s["layout"] as? String != oldLayout || s["screen"] as? Int != oldScreen
+                    || s["side"] as? String != oldSide { applyLayout() }
+            }
+        case "hitrects":
+            solidRects = (body["rects"] as? [[String: Double]] ?? []).map {
+                NSRect(x: $0["x"] ?? 0, y: $0["y"] ?? 0,
+                       width: $0["w"] ?? 0, height: $0["h"] ?? 0)
+            }
+        case "ready":
+            pushScreens()
+            web.evaluateJavaScript("window.setDevices&&setDevices(\(micOn),\(camOn))")
+        case "hide":
+            window.orderOut(nil)
         case "quit":
             NSApp.terminate(nil)
-        default:
-            break
+        default: break
         }
     }
 
     private func apply(settings s: [String: Any]) {
         settings = s
-        let onTop = s["alwaysOnTop"] as? Bool ?? true
-        window.level = onTop ? .floating : .normal
+        window.level = (s["alwaysOnTop"] as? Bool ?? true) ? .floating : .normal
+        updateAlpha()
+    }
+
+    /// Salva un'impostazione passando dal server, cosi' resta l'unica fonte.
+    private func postSettings(_ patch: [String: Any]) {
+        guard let url = URL(string: "\(BASE)/api/settings") else { return }
+        var r = URLRequest(url: url)
+        r.httpMethod = "POST"
+        r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        r.httpBody = try? JSONSerialization.data(withJSONObject: patch)
+        URLSession.shared.dataTask(with: r).resume()
+    }
+
+    /// Manda alla UI l'elenco degli schermi, per il menu a tendina.
+    private func pushScreens() {
+        let list = NSScreen.screens.enumerated().map { i, s -> [String: Any] in
+            let f = s.frame
+            return ["i": i,
+                    "name": s.localizedName,
+                    "size": "\(Int(f.width))×\(Int(f.height))",
+                    "main": s == NSScreen.main]
+        }
+        guard let d = try? JSONSerialization.data(withJSONObject: list),
+              let j = String(data: d, encoding: .utf8) else { return }
+        web.evaluateJavaScript("window.setScreens&&setScreens(\(j))")
     }
 
     // MARK: notifiche di sistema
 
     private func askNotificationPermission() {
-        guard Bundle.main.bundleIdentifier != nil else { return }  // serve un vero .app
+        guard Bundle.main.bundleIdentifier != nil else { return }
         let center = UNUserNotificationCenter.current()
         center.delegate = self
         center.requestAuthorization(options: [.alert, .sound]) { [weak self] ok, _ in
@@ -213,25 +400,21 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         }
     }
 
-    func userNotificationCenter(_ c: UNUserNotificationCenter,
-                                willPresent n: UNNotification,
+    func userNotificationCenter(_ c: UNUserNotificationCenter, willPresent n: UNNotification,
                                 withCompletionHandler done: @escaping (UNNotificationPresentationOptions) -> Void) {
-        done([.banner, .sound])     // mostrale anche se Peekaboo e' in primo piano
+        done([.banner, .sound])
     }
 
     private func notify(_ title: String, _ body: String) {
         let sound = (settings["notifications"] as? [String: Any])?["sound"] as? Bool ?? true
-
         if notificationsReady {
             let c = UNMutableNotificationContent()
-            c.title = title
-            c.body = body
+            c.title = title; c.body = body
             if sound { c.sound = .default }
             UNUserNotificationCenter.current().add(
                 UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: nil))
             return
         }
-        // Ripiego per l'eseguibile non impacchettato.
         let esc = { (s: String) in s.replacingOccurrences(of: "\"", with: "'") }
         let script = "display notification \"\(esc(body))\" with title \"\(esc(title))\""
             + (sound ? " sound name \"Submarine\"" : "")
@@ -245,17 +428,14 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         (settings["notifications"] as? [String: Any])?[key] as? Bool ?? false
     }
 
-    /// Confronta lo stato di adesso con quello di prima e avvisa sui cambiamenti.
     private func checkTransitions(_ data: [String: Any]) {
         let dnd = data["dnd"] as? Bool ?? false
         var now: [Int: String] = [:]
-        var newlyWaiting: [String] = []
-        var newlyReplied: [String] = []
+        var newlyWaiting: [String] = [], newlyReplied: [String] = []
 
         for g in data["groups"] as? [[String: Any]] ?? [] {
             for s in g["sessions"] as? [[String: Any]] ?? [] {
-                guard let pid = s["pid"] as? Int,
-                      let state = s["state"] as? String else { continue }
+                guard let pid = s["pid"] as? Int, let state = s["state"] as? String else { continue }
                 now[pid] = state
                 let before = lastStates[pid]
                 guard !firstPoll, before != nil, before != state else { continue }
@@ -265,8 +445,9 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
             }
         }
         lastStates = now
-        defer { firstPoll = false }
-        guard !dnd, !firstPoll else { return }
+        let wasFirst = firstPoll
+        firstPoll = false
+        guard !dnd, !wasFirst else { return }
 
         if wants("waiting"), !newlyWaiting.isEmpty {
             notify(newlyWaiting.count == 1 ? "Una sessione ti aspetta"
@@ -278,13 +459,11 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
                                            : "\(newlyReplied.count) sessioni hanno risposto",
                    newlyReplied.prefix(3).joined(separator: ", "))
         }
-        // Le dimenticate sono una condizione, non un evento: al massimo una volta al giorno.
         let forgotten = data["forgotten"] as? Int ?? 0
         if wants("forgotten"), forgotten > 2,
            Date().timeIntervalSince(lastForgottenNote) > 86_400 {
             lastForgottenNote = Date()
-            notify("Sessioni dimenticate",
-                   "\(forgotten) sessioni ferme da un pezzo. Vuoi chiuderle?")
+            notify("Sessioni dimenticate", "\(forgotten) sessioni ferme da un pezzo. Vuoi chiuderle?")
         }
     }
 
@@ -293,8 +472,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
     private func buildStatusItem() {
         status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         status.button?.title = "👻"
-        let menu = NSMenu()
-        menu.delegate = self
+        let menu = NSMenu(); menu.delegate = self
         status.menu = menu
     }
 
@@ -302,18 +480,20 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         guard let url = URL(string: "\(BASE)/api/sessions") else { return }
         URLSession.shared.dataTask(with: url) { [weak self] d, _, _ in
             guard let self, let d,
-                  let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any]
-            else { return }
+                  let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { return }
             DispatchQueue.main.async {
                 self.snapshot = j
-                if let s = j["settings"] as? [String: Any] { self.apply(settings: s) }
+                if let s = j["settings"] as? [String: Any] {
+                    let first = self.settings.isEmpty
+                    self.apply(settings: s)
+                    if first { self.applyLayout() }
+                }
                 self.checkTransitions(j)
-
                 let c = j["counts"] as? [String: Int] ?? [:]
                 let waiting = c["waiting"] ?? 0, working = c["working"] ?? 0
-                if waiting > 0        { self.status.button?.title = "👻 \(waiting)❗️" }
-                else if working > 0   { self.status.button?.title = "👻 \(working)" }
-                else                  { self.status.button?.title = "👻" }
+                if waiting > 0      { self.status.button?.title = "👻 \(waiting)❗️" }
+                else if working > 0 { self.status.button?.title = "👻 \(working)" }
+                else                { self.status.button?.title = "👻" }
             }
         }.resume()
     }
@@ -325,23 +505,17 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         "sleeping": NSColor(red: 0.49, green: 0.53, blue: 0.59, alpha: 1),
     ]
 
-    /// Un fantasmino minuscolo del colore dello stato, per il menu.
     private func ghostDot(_ state: String) -> NSImage {
         let size = NSSize(width: 11, height: 12)
         let img = NSImage(size: size)
         img.lockFocus()
         (App.colors[state] ?? .gray).setFill()
         let p = NSBezierPath()
-        p.appendArc(withCenter: NSPoint(x: 5.5, y: 7), radius: 4.6,
-                    startAngle: 0, endAngle: 180)
-        p.line(to: NSPoint(x: 0.9, y: 2.4))
-        p.line(to: NSPoint(x: 2.8, y: 3.8))
-        p.line(to: NSPoint(x: 4.6, y: 2.4))
-        p.line(to: NSPoint(x: 6.4, y: 3.8))
-        p.line(to: NSPoint(x: 8.2, y: 2.4))
-        p.line(to: NSPoint(x: 10.1, y: 3.8))
-        p.close()
-        p.fill()
+        p.appendArc(withCenter: NSPoint(x: 5.5, y: 7), radius: 4.6, startAngle: 0, endAngle: 180)
+        p.line(to: NSPoint(x: 0.9, y: 2.4)); p.line(to: NSPoint(x: 2.8, y: 3.8))
+        p.line(to: NSPoint(x: 4.6, y: 2.4)); p.line(to: NSPoint(x: 6.4, y: 3.8))
+        p.line(to: NSPoint(x: 8.2, y: 2.4)); p.line(to: NSPoint(x: 10.1, y: 3.8))
+        p.close(); p.fill()
         img.unlockFocus()
         return img
     }
@@ -363,7 +537,6 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
                 .foregroundColor: crowded ? NSColor(red: 1, green: 0.42, blue: 0.54, alpha: 1)
                                           : NSColor.secondaryLabelColor])
             menu.addItem(header)
-
             for s in g["sessions"] as? [[String: Any]] ?? [] {
                 let state = s["state"] as? String ?? "sleeping"
                 let forgotten = s["forgotten"] as? Bool ?? false
@@ -378,14 +551,12 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
             }
             menu.addItem(.separator())
         }
-
         let toggle = NSMenuItem(title: window.isVisible ? "Nascondi il fantasmino"
                                                        : "Mostra il fantasmino",
                                 action: #selector(toggleWindow), keyEquivalent: "g")
         toggle.keyEquivalentModifierMask = [.command, .option]
         toggle.target = self
         menu.addItem(toggle)
-
         let quit = NSMenuItem(title: "Esci", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
@@ -425,9 +596,8 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         }, 1, &spec, nil, nil)
 
         var ref: EventHotKeyRef?
-        let id = EventHotKeyID(signature: OSType(0x504B4142), id: HOTKEY_ID)  // 'PKAB'
-        RegisterEventHotKey(UInt32(kVK_ANSI_G),
-                            UInt32(cmdKey | optionKey),
+        let id = EventHotKeyID(signature: OSType(0x504B4142), id: HOTKEY_ID)   // 'PKAB'
+        RegisterEventHotKey(UInt32(kVK_ANSI_G), UInt32(cmdKey | optionKey),
                             id, GetApplicationEventTarget(), 0, &ref)
     }
 }

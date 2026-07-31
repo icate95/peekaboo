@@ -8,8 +8,10 @@ export PEEKABOO_PORT="${PEEKABOO_PORT:-8787}"
 PIDFILE=".server.pid"
 APP="Peekaboo.app/Contents/MacOS/Peekaboo"
 
-# Ferma un Peekaboo precedente, se c'e'.
+# Ferma un Peekaboo precedente, se c'e' — compreso il vecchio binario
+# "companion-app", il nome che aveva prima di chiamarsi Peekaboo.
 pkill -f 'Peekaboo.app/Contents/MacOS/Peekaboo' 2>/dev/null || true
+pkill -f 'companion-app' 2>/dev/null || true
 if [ -f "$PIDFILE" ]; then
   kill "$(cat "$PIDFILE")" 2>/dev/null || true
   rm -f "$PIDFILE"

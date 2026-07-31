@@ -271,6 +271,21 @@
   body[data-theme=pixel] #body{stroke-width:2.8}
   body[data-theme=pixel] #halo{opacity:.13}
 
+  /* microfono acceso: canticchia. telecamera accesa: tappeto rosso */
+  #eyes{transition:transform .12s ease-out}
+  .micprop{animation:micsway 1.8s ease-in-out infinite;transform-origin:62px 62px}
+  @keyframes micsway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+  .notes text{animation:notefly 2.6s ease-out infinite}
+  .notes text:nth-child(2){animation-delay:1.3s}
+  @keyframes notefly{
+    0%{opacity:0;transform:translate(0,0) scale(.6)}
+    30%{opacity:1}
+    100%{opacity:0;transform:translate(-8px,-22px) scale(1.1)}
+  }
+  .spot{animation:spotsweep 4.5s ease-in-out infinite;transform-origin:42px 0}
+  @keyframes spotsweep{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+  body[data-mic="1"] #big{animation-duration:1.4s}
+
   /* accessori animati delle skin */
   .floaty{animation:floaty 3.2s ease-in-out infinite}
   @keyframes floaty{0%,100%{transform:translateY(0);opacity:.9}
@@ -344,11 +359,36 @@
     <div id="tally"></div>
     <span class="ico" id="dnd"  title="Non disturbare">☾</span>
     <span class="ico" id="gear" title="Impostazioni">⚙</span>
-    <span class="ico" id="tall" title="Tutta l'altezza dello schermo">⇕</span>
     <span class="ico" id="close" title="Chiudi">✕</span>
   </div>
 
   <div id="panel" class="card">
+    <div class="sec">Dove sta</div>
+    <div class="row"><label>Schermo</label>
+      <select id="screenSel"><option value="-1">principale</option></select></div>
+    <div class="row"><label>Disposizione</label>
+      <select id="layoutSel">
+        <option value="full">colonna intera</option>
+        <option value="tophalf">metà alta</option>
+        <option value="half">metà bassa</option>
+        <option value="libero">libera (trascinala)</option>
+      </select></div>
+    <div class="row"><label>Lato</label>
+      <select id="sideSel">
+        <option value="right">destra</option>
+        <option value="left">sinistra</option>
+      </select></div>
+    <div class="row"><label>Larghezza</label>
+      <input type="number" min="240" max="900" data-key="width"></div>
+
+    <div class="sec">Comportamento</div>
+    <div class="row"><label>Si smaterializza mentre lavori altrove</label>
+      <div class="sw" data-key="autoFade"></div></div>
+    <div class="row"><label>I click passano attraverso il vuoto</label>
+      <div class="sw" data-key="clickThrough"></div></div>
+    <div class="row"><label>Gli occhi seguono il mouse</label>
+      <div class="sw" data-key="eyesFollow"></div></div>
+
     <div class="sec">Aspetto</div>
     <div class="themes" id="themes">
       <div class="th" data-theme="morbido">morbido</div>
@@ -425,19 +465,26 @@
                          Q63 76 56 63 Q49 76 42 63 Q35 76 28 63 Q21 76 14 63 Z"/>
 
       <g class="face">
-        <g class="blink" style="transform-origin:42px 44px">
-          <ellipse class="eye" id="eyeL" cx="32" cy="44" rx="4.6" ry="5.8" fill="var(--outline)"/>
-          <ellipse class="eye" id="eyeR" cx="52" cy="44" rx="4.6" ry="5.8" fill="var(--outline)"/>
-          <rect class="eyepx" x="28" y="39" width="8" height="9"/>
-          <rect class="eyepx" x="48" y="39" width="8" height="9"/>
-          <circle class="shine" cx="33.8" cy="42" r="1.6" fill="#fff" opacity=".95"/>
-          <circle class="shine" cx="53.8" cy="42" r="1.6" fill="#fff" opacity=".95"/>
+        <!-- #eyes muove lo sguardo, .blink fa le ciglia: due gruppi separati
+             perche' l'animazione CSS sovrascriverebbe la trasformazione -->
+        <g id="eyes">
+          <g class="blink" style="transform-origin:42px 44px">
+            <ellipse class="eye" id="eyeL" cx="32" cy="44" rx="4.6" ry="5.8" fill="var(--outline)"/>
+            <ellipse class="eye" id="eyeR" cx="52" cy="44" rx="4.6" ry="5.8" fill="var(--outline)"/>
+            <rect class="eyepx" x="28" y="39" width="8" height="9"/>
+            <rect class="eyepx" x="48" y="39" width="8" height="9"/>
+            <circle class="shine" cx="33.8" cy="42" r="1.6" fill="#fff" opacity=".95"/>
+            <circle class="shine" cx="53.8" cy="42" r="1.6" fill="#fff" opacity=".95"/>
+          </g>
         </g>
         <ellipse class="blushc" cx="22.5" cy="53" rx="4.6" ry="2.8"/>
         <ellipse class="blushc" cx="61.5" cy="53" rx="4.6" ry="2.8"/>
         <path id="mouth" d="M38 54 Q42 57 46 54" stroke="var(--outline)" stroke-width="1.9"
               fill="none" stroke-linecap="round"/>
       </g>
+
+      <!-- microfono e riflettori: compaiono se accendi mic o telecamera -->
+      <g id="props"></g>
 
       <!-- skin stagionale: riempita dalla JS -->
       <g id="skin"></g>
@@ -637,11 +684,91 @@ function react(kind){
 }
 
 const POKES = ['bù!','ehi!','ciao','sono qui','uh!','buh!'];
-$('#stage').addEventListener('click', ev => {
+let lastData = null;
+
+/** Click sul fantasmino: se qualcuno ti aspetta ti ci porta, altrimenti gioca. */
+$('#stage').addEventListener('click', async ev => {
   if (ev.target.closest('#swarm')) return;
+  const waiting = (lastData?.groups || []).flatMap(g => g.sessions)
+                    .find(s => s.state === 'waiting');
+  if (waiting){
+    react('hop');
+    say(`Ti porto da «${waiting.name}»`, 2200);
+    await post('/api/focus', {pid: waiting.pid});
+    return;
+  }
   react(Math.random() < .3 ? 'spin' : 'hop');
   if (settings.personality) say(POKES[Math.floor(Math.random()*POKES.length)], 1600);
 });
+
+// ------------------------------------------------------------ sguardo e scena
+/** Chiamata dal guscio nativo a ogni movimento del mouse, anche fuori. */
+window.lookAt = (x, y) => {
+  const eyes = $('#eyes');
+  if (!eyes) return;
+  if (!(settings.eyesFollow ?? true)){ eyes.removeAttribute('transform'); return; }
+  const svg = $('#big'), r = svg.getBoundingClientRect();
+  if (!r.width) return;
+  const unit = 84 / r.width;                       // px dello schermo → unita' del disegno
+  const cx = r.left + r.width / 2, cy = r.top + r.height * 0.46;
+  const dx = (x - cx) * unit, dy = (y - cy) * unit;
+  const d = Math.hypot(dx, dy) || 1;
+  const reach = Math.min(2.8, d / 12);
+  eyes.setAttribute('transform',
+    `translate(${(dx / d * reach).toFixed(2)} ${(dy / d * reach * .75).toFixed(2)})`);
+};
+
+/** Microfono acceso → canta. Telecamera accesa → tappeto rosso. */
+const PROPS = {
+  mic: `
+    <g class="micprop">
+      <rect x="60" y="46" width="4" height="20" rx="2" fill="#3a3f4a"
+            stroke="var(--outline)" stroke-width="1.4"/>
+      <ellipse cx="62" cy="43" rx="6" ry="7" fill="#6b7280"
+               stroke="var(--outline)" stroke-width="1.6"/>
+      <path d="M57 40 h10 M57 43 h10 M57 46 h10" stroke="var(--outline)"
+            stroke-width="1" opacity=".55"/>
+    </g>
+    <g class="notes">
+      <text x="12" y="34" font-size="11" fill="var(--replied)">♪</text>
+      <text x="20" y="24" font-size="9" fill="var(--working)">♫</text>
+    </g>`,
+  cam: `
+    <g class="spot">
+      <path d="M2 0 L26 84 L2 84 Z" fill="#fff6cc" opacity=".16"/>
+      <path d="M82 0 L58 84 L82 84 Z" fill="#fff6cc" opacity=".16"/>
+    </g>
+    <rect x="0" y="74" width="84" height="10" fill="#c0263c" opacity=".75"/>
+    <g class="twinkle">
+      <path d="M14 20 l1.4 3.6 3.6 1.4 -3.6 1.4 -1.4 3.6 -1.4 -3.6 -3.6 -1.4 3.6 -1.4 z"
+            fill="#ffe08a"/>
+    </g>
+    <g class="twinkle" style="animation-delay:.8s">
+      <path d="M70 30 l1.2 3 3 1.2 -3 1.2 -1.2 3 -1.2 -3 -3 -1.2 3 -1.2 z" fill="#ffe08a"/>
+    </g>`,
+};
+
+let devMic = false, devCam = false;
+window.setDevices = (mic, cam) => {
+  if (mic === devMic && cam === devCam) return;
+  devMic = mic; devCam = cam;
+  document.body.dataset.mic = mic ? '1' : '0';
+  document.body.dataset.cam = cam ? '1' : '0';
+  $('#props').innerHTML = (cam ? PROPS.cam : '') + (mic ? PROPS.mic : '');
+  if (settings.personality){
+    if (cam) say('Sotto i riflettori ✨', 3000);
+    else if (mic) say('Prova, prova… 🎤', 3000);
+  }
+};
+
+/** Elenco degli schermi, mandato dal guscio nativo. */
+window.setScreens = list => {
+  const sel = $('#screenSel');
+  const want = String(settings.screen ?? -1);
+  sel.innerHTML = '<option value="-1">principale (automatico)</option>' +
+    list.map(s => `<option value="${s.i}">${esc(s.name)} — ${s.size}${s.main ? ' ·' : ''}</option>`).join('');
+  sel.value = want;
+};
 
 // ------------------------------------------------------------------ lo sciame
 /** Posizioni fisse per indice: i fantasmini non saltellano a ogni aggiornamento. */
@@ -801,8 +928,12 @@ function paintSettings(){
     const v = get(settings, inp.dataset.key);
     if (document.activeElement !== inp && inp.value !== String(v)) inp.value = v;
   });
-  const sel = $('#skinSel');
-  if (sel && sel.value !== (settings.skin ?? 'auto')) sel.value = settings.skin ?? 'auto';
+  const pick = (id, v) => { const e = $(id); if (e && e.value !== String(v)) e.value = String(v); };
+  pick('#skinSel',   settings.skin   ?? 'auto');
+  pick('#layoutSel', settings.layout ?? 'full');
+  pick('#sideSel',   settings.side   ?? 'right');
+  pick('#screenSel', settings.screen ?? -1);
+  if (!(settings.eyesFollow ?? true)) $('#eyes')?.removeAttribute('transform');
 
   const SKIN_IT = {santa:'cappello di Babbo Natale', winter:'berretto invernale',
     hearts:'cuoricini', bunny:'orecchie da coniglio', flowers:'corona di fiori',
@@ -846,11 +977,35 @@ document.querySelectorAll('input[data-key]').forEach(inp => {
 document.querySelectorAll('.th').forEach(t => {
   t.onclick = () => pushSettings({theme: t.dataset.theme});
 });
-$('#skinSel').onchange = e => pushSettings({skin: e.target.value});
+$('#skinSel').onchange   = e => pushSettings({skin: e.target.value});
+$('#screenSel').onchange = e => pushSettings({screen: Number(e.target.value)});
+$('#layoutSel').onchange = e => pushSettings({layout: e.target.value});
+$('#sideSel').onchange   = e => pushSettings({side: e.target.value});
 
-$('#gear').onclick = () => $('#panel').classList.toggle('open');
+$('#gear').onclick = () => { $('#panel').classList.toggle('open'); sendHitRects(); };
 $('#close').onclick = () => send({type:'quit'});
-$('#tall').onclick = () => send({type:'fullheight'});
+
+/** I rettangoli dove c'e' davvero qualcosa: fuori da questi il click passa
+ *  all'app sotto, cosi' la finestra smette di comportarsi come un box. */
+let lastRects = '';
+function sendHitRects(){
+  const sel = ['#grip', '#panel.open', '.group', '#big', '#grab', '#say.on'];
+  const rects = [];
+  for (const s of sel){
+    for (const el of document.querySelectorAll(s)){
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0)
+        rects.push({x:Math.round(r.left), y:Math.round(r.top),
+                    w:Math.round(r.width), h:Math.round(r.height)});
+    }
+  }
+  const key = JSON.stringify(rects);
+  if (key === lastRects) return;          // niente traffico inutile
+  lastRects = key;
+  send({type:'hitrects', rects});
+}
+window.addEventListener('resize', sendHitRects);
+$('#list').addEventListener('scroll', sendHitRects);
 $('#dnd').onclick = () => {
   const on = !$('#dnd').classList.contains('on');
   pushSettings({dndUntil: on ? Math.floor(Date.now()/1000) + 3600 : 0});
@@ -928,6 +1083,8 @@ function render(d){
 
   renderList(d);
   renderSwarm((d.groups || []).flatMap(g => g.sessions));
+  lastData = d;
+  requestAnimationFrame(sendHitRects);   // dopo che il layout si e' assestato
 
   // commenti, solo quando cambia qualcosa di importante
   const w = c.waiting || 0;
@@ -948,6 +1105,7 @@ async function tick(){
     render(await r.json());
   }catch(e){ /* il server riparte da solo, riproviamo al giro dopo */ }
 }
+send({type:'ready'});      // chiede schermi e stato dei dispositivi
 tick();
 setInterval(tick, 2000);
 </script>

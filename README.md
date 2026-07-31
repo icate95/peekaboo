@@ -15,10 +15,10 @@ tuo Mac: legge solo i file di stato che Claude Code scrive già in `~/.claude`.
 
 ## Cosa vedi
 
-Una finestra senza bordi, sempre sopra le altre app, che puoi trascinare dove
-vuoi e allungare fino a tutta l'altezza dello schermo. Dentro, le sessioni sono
-**raggruppate per progetto**, una bubble ciascuna, ognuna con il suo fantasmino
-piccolo del colore del proprio stato:
+Una colonna senza bordi, sempre sopra le altre app, che di default occupa tutta
+l'altezza dello schermo. Dentro, le sessioni sono **raggruppate per progetto**,
+una bubble ciascuna, ognuna con il suo fantasmino piccolo del colore del proprio
+stato:
 
 ```
 ╭─ PEEKABOO ───────────── ●2 ●1 ●14  ☾ ⚙ ⇕ ✕ ╮
@@ -81,6 +81,40 @@ primo piano, con la tab giusta già selezionata. Funziona con **Terminal.app** e
 
 Al primo click macOS chiede il permesso: *Impostazioni di sistema › Privacy e
 sicurezza › Automazione*. Va concesso, altrimenti il click non ha effetto.
+
+---
+
+## Dove sta e come si comporta
+
+**Su quale schermo.** Se ne hai più di uno, lo scegli dalle impostazioni: il menu
+elenca gli schermi con nome e risoluzione. Peekaboo sta su **uno solo**.
+
+**Disposizione.** Quattro preset, tutti su una colonna laterale (destra o
+sinistra, a scelta): colonna intera, metà alta, metà bassa, oppure *libera* —
+e in quel caso la trascini dove vuoi. Se la sposti a mano, passa automaticamente
+a "libera": non ti riporta dove dice lei.
+
+**Si smaterializza mentre lavori.** Quando l'app attiva è un'altra — cioè quando
+stai scrivendo da qualche altra parte — il fantasmino sbiadisce e ti lascia
+vedere quello che c'è sotto. Appena il mouse si avvicina, torna pieno.
+
+> Rilevare i *tasti* premuti richiederebbe il permesso Accessibilità, lo stesso
+> che serve a un keylogger. L'app attiva è un segnale equivalente e gratuito.
+
+**Non è un box.** La finestra resta un rettangolo — macOS non ne ha di altra
+forma — ma i click **passano attraverso** ovunque non ci sia niente disegnato:
+puoi cliccare le finestre sotto attraverso lo spazio vuoto attorno al fantasmino.
+La UI comunica al guscio nativo i rettangoli "solidi", che fa da filtro.
+
+**Gli occhi seguono il mouse**, ovunque sia sullo schermo.
+
+**Microfono e telecamera.** Se accendi il microfono, il fantasmino tira fuori un
+microfono e canticchia; se accendi la telecamera, finisce sotto i riflettori su
+un tappeto rosso. Il rilevamento non chiede nessun permesso: chiede al sistema se
+il dispositivo sta girando, senza mai aprire un flusso.
+
+**Click sul fantasmino.** Se c'è una sessione che ti aspetta, ti porta lì. Se non
+c'è, fa una capriola.
 
 ---
 
@@ -159,6 +193,12 @@ Il pannello si apre con la ⚙. Tutto viene salvato in
 
 | Voce | Cosa fa |
 |---|---|
+| Schermo | su quale monitor vive, se ne hai più di uno |
+| Disposizione | colonna intera, metà alta, metà bassa, libera |
+| Lato e larghezza | destra o sinistra, e quanto è larga |
+| Si smaterializza | sbiadisce mentre lavori in un'altra app |
+| Click attraverso | i click passano dove non c'è niente disegnato |
+| Occhi seguono il mouse | accende o spegne lo sguardo |
 | Tema | morbido, pixel, minimale |
 | Vestito | automatico (stagionale), nessuno, o uno fisso |
 | Fantasmini attorno | accende o spegne lo sciame |
