@@ -1,8 +1,9 @@
-# binario compilato: si rigenera con ./run.sh
+# compiled bundle: rebuilt by ./build.sh
+Peekaboo.app/
 companion-app
 *.dSYM/
 
-# stato locale di esecuzione
+# local runtime state
 .server.pid
 
 # macOS
@@ -11,6 +12,3 @@ companion-app
 # Python
 __pycache__/
 *.py[cod]
-
-# bundle costruito: si rigenera con ./build.sh
-Peekaboo.app/
