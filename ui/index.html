@@ -268,6 +268,26 @@
   /* ricami e balze */
   #deco{fill:none;stroke:var(--outline);stroke-width:1.5;
         stroke-linecap:round;opacity:.75;color:var(--outline)}
+
+  /* Slancio elastico quando cambia taglio: si allunga oltre il dovuto e
+     rimbalza indietro. L'origine e' in cima, cosi' la testa resta ferma
+     e a stirarsi e' il corpo — squash and stretch, come nei cartoni. */
+  #shape{transform-box:view-box;transform-origin:42px 24px}
+  #shape.stretch{animation:stretchIn .9s cubic-bezier(.22,.9,.3,1.2) both}
+  @keyframes stretchIn{
+    0%  {transform:scaleY(1)    scaleX(1)}
+    35% {transform:scaleY(1.26) scaleX(.9)}
+    62% {transform:scaleY(.94)  scaleX(1.05)}
+    82% {transform:scaleY(1.04) scaleX(.98)}
+    100%{transform:scaleY(1)    scaleX(1)}
+  }
+  /* per gli altri cambi d'abito basta un guizzo appena accennato */
+  #shape.pop{animation:popIn .45s ease both}
+  @keyframes popIn{
+    0%  {transform:scaleY(1)    scaleX(1)}
+    45% {transform:scaleY(1.07) scaleX(.96)}
+    100%{transform:scaleY(1)    scaleX(1)}
+  }
   /* i tre in un cappotto: la faccia in alto, le altre due sono nel deco */
   body[data-shape=trench] .blushc{opacity:0}
   body[data-shape=trench] #eyes{transform:translateY(-8px)}
@@ -499,9 +519,13 @@
       <!-- alone del colore dello stato, dietro al corpo -->
       <ellipse id="halo" cx="42" cy="46" rx="33" ry="34" filter="url(#soft)"/>
 
-      <!-- corpo: la sagoma cambia con lo stato d'animo (vedi WARDROBE) -->
-      <path id="body" d=""/>
-      <g id="deco"></g>
+      <!-- corpo: la sagoma cambia con lo stato d'animo (vedi wardrobe.js).
+           #shape sta a parte per poter fare lo slancio elastico senza
+           litigare con il galleggiamento, che agisce su tutto l'svg -->
+      <g id="shape">
+        <path id="body" d=""/>
+        <g id="deco"></g>
+      </g>
 
       <g class="face">
         <!-- #eyes muove lo sguardo, .blink fa le ciglia: due gruppi separati
@@ -619,16 +643,28 @@ function renderSkin(){
   if (crown) crown.innerHTML = flowerCrown();
 }
 
-/** Indossa una sagoma del guardaroba. */
+/** Indossa una sagoma del guardaroba, con lo slancio giusto per il cambio. */
 let wornShape = null;
 function wear(name){
   if (name === wornShape) return;
+  const first = wornShape === null;      // al primo avvio niente teatro
   wornShape = name;
+
   const s = WARDROBE[name] || WARDROBE.regular;
   setAttr($('#body'), 'd', s.d);
   setAttr($('#body'), 'class', s.cls || '');
   $('#deco').innerHTML = s.deco || '';
   document.body.dataset.shape = name;
+
+  if (first) return;
+  // diventando lunga si stira oltre misura e rimbalza; negli altri
+  // cambi d'abito basta un guizzo
+  const g = $('#shape');
+  const kind = (name === 'maxi') ? 'stretch' : 'pop';
+  g.classList.remove('stretch', 'pop');
+  void g.getBoundingClientRect();         // forza il restart dell'animazione
+  g.classList.add(kind);
+  setTimeout(() => g.classList.remove(kind), kind === 'stretch' ? 950 : 500);
 }
 
 function esc(s){
@@ -989,8 +1025,19 @@ function sendHitRects(){
   lastRects = key;
   send({type:'hitrects', rects});
 }
-window.addEventListener('resize', sendHitRects);
 $('#list').addEventListener('scroll', sendHitRects);
+
+// Ridimensionando cambia anche il taglio (alta → lunga): va ricalcolato
+// subito, altrimenti lo slancio arriverebbe fino a due secondi dopo.
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  sendHitRects();
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (lastData) wear(pickShape(lastData, {height: window.innerHeight,
+                                            dndLook: settings.dndLook}));
+  }, 120);                                 // a ridimensionamento finito
+});
 $('#dnd').onclick = () => {
   const on = !$('#dnd').classList.contains('on');
   pushSettings({dndUntil: on ? Math.floor(Date.now()/1000) + 3600 : 0});
