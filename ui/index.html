@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Companion</title>
+<style>
+  :root{
+    --working:#3ddc97;
+    --waiting:#ffb547;
+    --replied:#5eb3ff;
+    --sleeping:#7d8590;
+    --crowded:#ff6b8a;
+
+    --panel:rgba(22,24,32,.82);
+    --panel-line:rgba(255,255,255,.10);
+    --ink:#e9edf4;
+    --ink-dim:#9aa3b2;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:transparent;overflow:hidden}
+  body{
+    font:13px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    display:flex; flex-direction:column;
+    padding:10px; gap:8px;
+    user-select:none; cursor:default;
+  }
+
+  /* ---------- barra di trascinamento ---------- */
+  #grip{
+    -webkit-app-region:drag;
+    flex:0 0 auto;
+    display:flex; align-items:center; gap:8px;
+    padding:5px 10px;
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:11px;
+    backdrop-filter:blur(22px) saturate(150%);
+  }
+  #grip b{font-size:11px;font-weight:600;letter-spacing:.3px;color:var(--ink-dim)}
+  #grip .spacer{flex:1}
+  #tally{display:flex;gap:7px;font-size:11px;font-variant-numeric:tabular-nums}
+  #tally span{display:flex;align-items:center;gap:3px;color:var(--ink-dim)}
+  #tally i{width:6px;height:6px;border-radius:50%;background:currentColor;font-style:normal}
+  .t-working{color:var(--working)!important}
+  .t-waiting{color:var(--waiting)!important}
+  .t-replied{color:var(--replied)!important}
+  .t-sleeping{color:var(--sleeping)!important}
+  #close{
+    -webkit-app-region:no-drag;
+    cursor:pointer;color:var(--ink-dim);font-size:14px;line-height:1;
+    padding:0 2px;border-radius:4px;
+  }
+  #close:hover{color:#ff6b6b}
+
+  /* ---------- elenco progetti ---------- */
+  #list{
+    flex:1 1 auto; min-height:0;
+    overflow-y:auto; overflow-x:hidden;
+    display:flex; flex-direction:column; gap:7px;
+    padding-right:2px;
+  }
+  #list::-webkit-scrollbar{width:7px}
+  #list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:4px}
+  #list::-webkit-scrollbar-track{background:transparent}
+
+  .group{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:13px;
+    padding:8px 9px 9px;
+    backdrop-filter:blur(22px) saturate(150%);
+    animation:rise .28s ease both;
+  }
+  @keyframes rise{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+  .group.crowded{
+    border-color:rgba(255,107,138,.5);
+    box-shadow:0 0 0 1px rgba(255,107,138,.16), 0 0 22px -6px rgba(255,107,138,.45);
+  }
+
+  .ghead{
+    display:flex; align-items:center; gap:6px;
+    padding:0 3px 7px;
+    font-size:11px; font-weight:600; letter-spacing:.25px;
+    color:var(--ink-dim);
+  }
+  .ghead .nm{
+    flex:1; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .ghead .cnt{
+    flex:0 0 auto;
+    font-variant-numeric:tabular-nums;
+    background:rgba(255,255,255,.08);
+    border-radius:20px; padding:1px 6px; font-size:10px;
+  }
+  .group.crowded .cnt{background:rgba(255,107,138,.2);color:#ffb3c4}
+
+  .warn{
+    display:flex;align-items:center;gap:5px;
+    margin:0 1px 7px;padding:5px 8px;
+    background:rgba(255,107,138,.12);
+    border:1px solid rgba(255,107,138,.28);
+    border-radius:8px;
+    font-size:10.5px;color:#ffb3c4;line-height:1.35;
+  }
+
+  /* ---------- bubble ---------- */
+  .bubbles{display:flex;flex-direction:column;gap:5px}
+
+  .bub{
+    -webkit-app-region:no-drag;
+    position:relative;
+    display:flex; align-items:flex-start; gap:8px;
+    padding:6px 9px 7px 8px;
+    border-radius:10px;
+    background:rgba(255,255,255,.045);
+    border:1px solid transparent;
+    cursor:pointer;
+    transition:background .16s, border-color .16s, transform .1s;
+  }
+  .bub:hover{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.14)}
+  .bub:active{transform:scale(.985)}
+  .bub.flash{animation:flash .5s ease}
+  @keyframes flash{0%,100%{background:rgba(255,255,255,.045)}40%{background:rgba(94,179,255,.28)}}
+
+  .dot{
+    flex:0 0 auto; width:8px; height:8px; border-radius:50%;
+    margin-top:4px; background:var(--sleeping);
+  }
+  .bub[data-s=working]  .dot{background:var(--working); animation:pulse 1.5s ease-in-out infinite}
+  .bub[data-s=waiting]  .dot{background:var(--waiting); animation:pulse .95s ease-in-out infinite}
+  .bub[data-s=replied]  .dot{background:var(--replied)}
+  .bub[data-s=sleeping] .dot{background:var(--sleeping); opacity:.55}
+  .bub[data-guessed="1"] .dot{
+    background:transparent;
+    border:2px solid var(--waiting);
+    width:9px;height:9px;
+  }
+  @keyframes pulse{
+    0%,100%{box-shadow:0 0 0 0 currentColor;opacity:1}
+    50%{box-shadow:0 0 0 4px transparent;opacity:.62}
+  }
+
+  .txt{flex:1;min-width:0}
+  .nme{
+    font-size:12px;font-weight:550;color:var(--ink);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .bub[data-s=sleeping] .nme{color:#aab2be}
+  .act{
+    font-size:10.5px;color:var(--ink-dim);margin-top:1px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .bub[data-s=waiting] .act{color:var(--waiting)}
+  .ago{
+    flex:0 0 auto;font-size:10px;color:#6f7785;
+    margin-top:3px;font-variant-numeric:tabular-nums;
+  }
+
+  /* ---------- fantasmino ---------- */
+  #ghost{
+    flex:0 0 auto;
+    -webkit-app-region:drag;
+    display:flex;align-items:flex-end;justify-content:center;
+    height:96px;position:relative;
+  }
+  #ghost svg{overflow:visible;animation:float 3.6s ease-in-out infinite}
+  @keyframes float{
+    0%,100%{transform:translateY(0) rotate(-1deg)}
+    50%{transform:translateY(-9px) rotate(1deg)}
+  }
+  body[data-mood=working] #ghost svg{animation-duration:1.9s}
+  body[data-mood=waiting] #ghost svg{animation-duration:1.1s}
+  body[data-mood=sleeping] #ghost svg{animation-duration:5.5s}
+
+  .body-fill{transition:fill .5s ease, filter .5s ease}
+  .skirt{animation:wave 2.6s ease-in-out infinite}
+  @keyframes wave{
+    0%,100%{d:path("M12 62 Q22 76 32 62 Q42 76 52 62 Q62 76 72 62 L72 50 L12 50 Z")}
+    50%{d:path("M12 66 Q22 54 32 66 Q42 54 52 66 Q62 54 72 66 L72 50 L12 50 Z")}
+  }
+  .eye{transition:fill .4s ease}
+  .blink{animation:blink 4.3s infinite}
+  @keyframes blink{
+    0%,95%,100%{transform:scaleY(1)}
+    97%{transform:scaleY(.08)}
+  }
+  #zzz{opacity:0;transition:opacity .5s}
+  body[data-mood=sleeping] #zzz{opacity:1}
+  #zzz text{animation:rise-z 3.4s ease-out infinite}
+  #zzz text:nth-child(2){animation-delay:1.15s}
+  #zzz text:nth-child(3){animation-delay:2.3s}
+  @keyframes rise-z{
+    0%{opacity:0;transform:translate(0,0) scale(.6)}
+    25%{opacity:.9}
+    100%{opacity:0;transform:translate(9px,-24px) scale(1.15)}
+  }
+  #bang{opacity:0;transition:opacity .35s}
+  body[data-mood=waiting] #bang{opacity:1;animation:bounce .95s ease-in-out infinite}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+  #swirl{opacity:0;transition:opacity .35s}
+  body[data-mood=crowded] #swirl{opacity:1}
+  #swirl g{animation:spin 3.1s linear infinite;transform-origin:42px 8px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  #say{
+    position:absolute; bottom:70px; left:50%;
+    transform:translateX(-50%);
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    backdrop-filter:blur(22px);
+    border-radius:11px; padding:5px 11px;
+    font-size:11px; color:var(--ink); white-space:nowrap;
+    opacity:0; transition:opacity .4s;
+    pointer-events:none;
+  }
+  #say.on{opacity:1}
+
+  #empty{
+    text-align:center;color:var(--ink-dim);font-size:11.5px;
+    padding:22px 10px;line-height:1.6;
+  }
+</style>
+</head>
+<body data-mood="sleeping">
+
+  <div id="grip">
+    <b>COMPANION</b>
+    <div class="spacer"></div>
+    <div id="tally"></div>
+    <div id="close" title="Chiudi">✕</div>
+  </div>
+
+  <div id="list"></div>
+
+  <div id="ghost">
+    <div id="say"></div>
+    <svg width="120" height="96" viewBox="0 0 84 84" aria-hidden="true">
+      <defs>
+        <radialGradient id="glow" cx="50%" cy="42%" r="62%">
+          <stop offset="0%"  stop-color="#fff" stop-opacity=".30"/>
+          <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="4.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <!-- ombra a terra -->
+      <ellipse cx="42" cy="79" rx="17" ry="3.4" fill="#000" opacity=".26"/>
+
+      <g filter="url(#soft)">
+        <!-- corpo -->
+        <path class="body-fill" d="M12 50 A30 30 0 0 1 72 50 L72 62 Q62 76 52 62 Q42 76 32 62 Q22 76 12 62 Z"
+              fill="var(--sleeping)" opacity=".95"/>
+        <path class="body-fill skirt" d="M12 62 Q22 76 32 62 Q42 76 52 62 Q62 76 72 62 L72 50 L12 50 Z"
+              fill="var(--sleeping)" opacity=".95"/>
+      </g>
+      <path d="M12 50 A30 30 0 0 1 72 50 L72 60 L12 60 Z" fill="url(#glow)"/>
+
+      <!-- occhi -->
+      <g class="blink" style="transform-origin:42px 42px">
+        <ellipse class="eye" id="eyeL" cx="31" cy="42" rx="4.4" ry="5.4" fill="#171a21"/>
+        <ellipse class="eye" id="eyeR" cx="53" cy="42" rx="4.4" ry="5.4" fill="#171a21"/>
+        <circle cx="32.6" cy="40.2" r="1.5" fill="#fff" opacity=".92"/>
+        <circle cx="54.6" cy="40.2" r="1.5" fill="#fff" opacity=".92"/>
+      </g>
+
+      <!-- guance -->
+      <ellipse cx="22" cy="50" rx="4" ry="2.4" fill="#ff8fa8" opacity=".34"/>
+      <ellipse cx="62" cy="50" rx="4" ry="2.4" fill="#ff8fa8" opacity=".34"/>
+
+      <!-- bocca -->
+      <path id="mouth" d="M38 53 Q42 56 46 53" stroke="#171a21" stroke-width="1.9"
+            fill="none" stroke-linecap="round" style="transition:d .35s ease"/>
+
+      <!-- zzz -->
+      <g id="zzz" fill="#aab2be" font-size="10" font-weight="700"
+         font-family="-apple-system,system-ui,sans-serif">
+        <text x="64" y="26">z</text>
+        <text x="64" y="26">z</text>
+        <text x="64" y="26">z</text>
+      </g>
+
+      <!-- punto esclamativo -->
+      <g id="bang">
+        <rect x="39.6" y="4" width="4.8" height="11" rx="2.4" fill="var(--waiting)"/>
+        <circle cx="42" cy="19" r="2.6" fill="var(--waiting)"/>
+      </g>
+
+      <!-- vortice di confusione -->
+      <g id="swirl">
+        <g>
+          <circle cx="42" cy="1" r="2.2" fill="var(--crowded)"/>
+          <circle cx="49" cy="8" r="2.2" fill="var(--crowded)" opacity=".7"/>
+          <circle cx="42" cy="15" r="2.2" fill="var(--crowded)" opacity=".45"/>
+          <circle cx="35" cy="8" r="2.2" fill="var(--crowded)" opacity=".25"/>
+        </g>
+      </g>
+    </svg>
+  </div>
+
+<script>
+const MOOD_COLOR = {
+  working:'var(--working)', waiting:'var(--waiting)',
+  replied:'var(--replied)', sleeping:'var(--sleeping)', crowded:'var(--crowded)'
+};
+const MOUTH = {
+  working:'M37 53 Q42 55.5 47 53',      // sorriso lieve, concentrato
+  waiting:'M38.5 54 A3.5 3.5 0 1 1 45.5 54 A3.5 3.5 0 1 1 38.5 54', // "o" di attesa
+  replied:'M36 52 Q42 58 48 52',        // sorriso pieno
+  sleeping:'M39 54 Q42 54 45 54',       // riga piatta
+  crowded:'M37 55 Q42 51.5 47 55'       // bocca all'ingiu'
+};
+const LABEL = {
+  working:'al lavoro', waiting:'aspetta te',
+  replied:'ha risposto', sleeping:'dorme'
+};
+
+function ago(s){
+  if (s < 60)    return s + 's';
+  if (s < 3600)  return Math.round(s/60) + 'm';
+  if (s < 86400) return Math.round(s/3600) + 'h';
+  return Math.round(s/86400) + 'g';
+}
+
+let sayTimer = null;
+function say(msg, ms = 3400){
+  const el = document.getElementById('say');
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(sayTimer);
+  sayTimer = setTimeout(() => el.classList.remove('on'), ms);
+}
+
+let lastMood = null, lastWaiting = 0;
+
+function render(d){
+  // --- fantasmino
+  document.body.dataset.mood = d.mood;
+  const col = MOOD_COLOR[d.mood];
+  document.querySelectorAll('.body-fill').forEach(p => p.style.fill = col);
+  document.getElementById('mouth').setAttribute('d', MOUTH[d.mood]);
+  const sleepy = d.mood === 'sleeping';
+  document.querySelectorAll('.eye').forEach(e => {
+    e.setAttribute('ry', sleepy ? 1.4 : 5.4);
+    e.setAttribute('cy', sleepy ? 44 : 42);
+  });
+
+  // --- conteggi
+  const c = d.counts || {};
+  document.getElementById('tally').innerHTML = ['working','waiting','replied','sleeping']
+    .filter(k => c[k])
+    .map(k => `<span class="t-${k}"><i></i>${c[k]}</span>`).join('');
+
+  // --- gruppi
+  const list = document.getElementById('list');
+  if (!d.groups || !d.groups.length){
+    list.innerHTML = '<div id="empty">Nessuna sessione Claude attiva.<br>Apri un terminale e cominciamo.</div>';
+  } else {
+    list.innerHTML = d.groups.map(g => `
+      <div class="group${g.crowded ? ' crowded' : ''}">
+        <div class="ghead">
+          <span class="nm" title="${esc(g.cwd)}">${esc(g.project)}</span>
+          <span class="cnt">${g.awake}/${g.sessions.length}</span>
+        </div>
+        ${g.crowded ? `<div class="warn">⚠︎ ${g.awake} sessioni sveglie qui — oltre ${d.crowdLimit} si accavallano</div>` : ''}
+        <div class="bubbles">
+          ${g.sessions.map(s => `
+            <div class="bub" data-s="${s.state}" data-guessed="${s.guessed ? 1 : 0}"
+                 data-pid="${s.pid}" title="${esc(LABEL[s.state])}${s.guessed ? ' (stima)' : ''} — clicca per aprire il terminale">
+              <div class="dot"></div>
+              <div class="txt">
+                <div class="nme">${esc(s.name)}</div>
+                <div class="act">${esc(s.activity || '')}</div>
+              </div>
+              <div class="ago">${ago(s.idleFor)}</div>
+            </div>`).join('')}
+        </div>
+      </div>`).join('');
+  }
+
+  // --- il fantasmino commenta quando cambia qualcosa di importante
+  const w = c.waiting || 0;
+  if (w > lastWaiting)
+    say(w === 1 ? 'Una sessione aspetta te' : `${w} sessioni aspettano te`);
+  else if (d.mood === 'crowded' && lastMood !== 'crowded')
+    say(`Troppe sessioni su ${d.crowded[0]}`);
+  else if (d.mood === 'sleeping' && lastMood && lastMood !== 'sleeping')
+    say('Tutto tranquillo');
+  lastWaiting = w;
+  lastMood = d.mood;
+}
+
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"]/g,
+    ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+}
+
+// --- click su una bubble: porta in primo piano il suo terminale
+document.getElementById('list').addEventListener('click', async ev => {
+  const bub = ev.target.closest('.bub');
+  if (!bub) return;
+  bub.classList.add('flash');
+  setTimeout(() => bub.classList.remove('flash'), 500);
+  try{
+    const r = await fetch('/api/focus', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ pid: Number(bub.dataset.pid) })
+    });
+    const j = await r.json();
+    if (!j.ok) say(j.error && /not authoriz|1743|assistive/i.test(j.error)
+      ? 'Autorizza in Impostazioni › Privacy › Automazione'
+      : 'Terminale non trovato');
+  }catch(e){ say('Non riesco ad aprirlo'); }
+});
+
+// --- ponte verso il guscio nativo (assente se apri la UI nel browser)
+const native = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.app;
+const send = m => { if (native) native.postMessage(m); };
+
+// trascina la finestra afferrandola dalla barra o dal fantasmino
+for (const id of ['grip','ghost']){
+  document.getElementById(id).addEventListener('mousedown', ev => {
+    if (ev.target.closest('#close')) return;
+    send({type:'dragstart'});
+  });
+}
+
+document.getElementById('close').onclick = () => send({type:'quit'});
+
+async function tick(){
+  try{
+    const r = await fetch('/api/sessions', {cache:'no-store'});
+    render(await r.json());
+  }catch(e){ /* il server riparte da solo, riproviamo al giro dopo */ }
+}
+tick();
+setInterval(tick, 2000);
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# binario compilato: si rigenera con ./run.sh
+companion-app
+*.dSYM/
+
+# stato locale di esecuzione
+.server.pid
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
