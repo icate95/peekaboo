@@ -130,8 +130,19 @@ def dnd_active():
 # ------------------------------------------------------------ launch at login
 
 def app_bundle_path():
-    """The .app next to this file, if it has been built."""
-    p = Path(__file__).parent / f"{APP_NAME}.app"
+    """The .app this server belongs to, wherever it is.
+
+    Two cases. Running from a checkout, the bundle sits next to this file.
+    Running from inside an installed app, this file *is* in the bundle, at
+    <App>.app/Contents/Resources/server.py — and the app may well have been
+    moved to /Applications, so the checkout path is no help.
+    """
+    here = Path(__file__).resolve().parent
+    if (here.name == "Resources" and here.parent.name == "Contents"
+            and here.parent.parent.suffix == ".app"):
+        return here.parent.parent
+
+    p = here / f"{APP_NAME}.app"
     return p if p.exists() else None
 
 
