@@ -11,3 +11,6 @@ companion-app
 # Python
 __pycache__/
 *.py[cod]
+
+# bundle costruito: si rigenera con ./build.sh
+Peekaboo.app/

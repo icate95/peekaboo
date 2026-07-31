@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<title>Companion</title>
+<title>Peekaboo</title>
 <style>
   :root{
     --working:#3ddc97;
@@ -12,189 +12,279 @@
     --crowded:#ff6b8a;
 
     --panel:rgba(22,24,32,.82);
-    --panel-line:rgba(255,255,255,.10);
+    --line:rgba(255,255,255,.10);
     --ink:#e9edf4;
-    --ink-dim:#9aa3b2;
+    --dim:#9aa3b2;
+    --faint:#6f7785;
+    --radius:13px;
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+
+    /* corpo chiaro tinto dallo stato, come negli sticker di riferimento */
+    --fill-working:#ddf8ea;
+    --fill-waiting:#fff1d8;
+    --fill-replied:#dcedff;
+    --fill-sleeping:#e7e9ee;
+    --fill-crowded:#ffe1e9;
+    --outline:#22262e;
+    --blush:#ffa3bb;
+  }
+
+  /* tema pixel: spigoli vivi, colori accesi, monospazio */
+  body[data-theme=pixel]{
+    --panel:rgba(16,18,26,.90);
+    --radius:3px;
+    --font:"SF Mono",Menlo,monospace;
+    --working:#4ef58c; --waiting:#ffc632; --replied:#5ec8ff; --sleeping:#79808d;
+  }
+  /* tema minimale: niente faccia, tutto piu' silenzioso */
+  body[data-theme=minimale]{
+    --panel:rgba(18,19,24,.72);
+    --line:rgba(255,255,255,.07);
+    --working:#8fd9b6; --waiting:#e2c08d; --replied:#9dc3e6; --sleeping:#8a8f98;
   }
 
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%;background:transparent;overflow:hidden}
   body{
-    font:13px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+    font:13px/1.45 var(--font);
     color:var(--ink);
     -webkit-font-smoothing:antialiased;
-    display:flex; flex-direction:column;
-    padding:10px; gap:8px;
-    user-select:none; cursor:default;
+    display:flex;flex-direction:column;
+    padding:10px;gap:8px;
+    user-select:none;cursor:default;
   }
 
-  /* ---------- barra di trascinamento ---------- */
-  #grip{
-    -webkit-app-region:drag;
-    flex:0 0 auto;
-    display:flex; align-items:center; gap:8px;
-    padding:5px 10px;
+  .card{
     background:var(--panel);
-    border:1px solid var(--panel-line);
-    border-radius:11px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
     backdrop-filter:blur(22px) saturate(150%);
   }
-  #grip b{font-size:11px;font-weight:600;letter-spacing:.3px;color:var(--ink-dim)}
+
+  /* ------------------------------------------------ barra di trascinamento */
+  #grip{
+    flex:0 0 auto;
+    display:flex;align-items:center;gap:7px;
+    padding:5px 8px 5px 10px;
+  }
+  #grip .ttl{font-size:11px;font-weight:600;letter-spacing:.4px;color:var(--dim)}
   #grip .spacer{flex:1}
   #tally{display:flex;gap:7px;font-size:11px;font-variant-numeric:tabular-nums}
-  #tally span{display:flex;align-items:center;gap:3px;color:var(--ink-dim)}
+  #tally span{display:flex;align-items:center;gap:3px}
   #tally i{width:6px;height:6px;border-radius:50%;background:currentColor;font-style:normal}
-  .t-working{color:var(--working)!important}
-  .t-waiting{color:var(--waiting)!important}
-  .t-replied{color:var(--replied)!important}
-  .t-sleeping{color:var(--sleeping)!important}
-  #close{
-    -webkit-app-region:no-drag;
-    cursor:pointer;color:var(--ink-dim);font-size:14px;line-height:1;
-    padding:0 2px;border-radius:4px;
+  .t-working{color:var(--working)}
+  .t-waiting{color:var(--waiting)}
+  .t-replied{color:var(--replied)}
+  .t-sleeping{color:var(--sleeping)}
+
+  .ico{
+    cursor:pointer;color:var(--faint);
+    padding:2px 4px;border-radius:5px;line-height:1;font-size:12px;
+    transition:color .15s,background .15s;
   }
+  .ico:hover{color:var(--ink);background:rgba(255,255,255,.09)}
+  .ico.on{color:var(--waiting)}
   #close:hover{color:#ff6b6b}
 
-  /* ---------- elenco progetti ---------- */
+  /* ---------------------------------------------------------- impostazioni */
+  #panel{
+    flex:0 0 auto;padding:10px 11px;display:none;
+    max-height:44vh;overflow-y:auto;
+  }
+  #panel.open{display:block}
+  .sec{font-size:10px;font-weight:700;letter-spacing:.6px;color:var(--faint);
+       text-transform:uppercase;margin:9px 0 5px}
+  .sec:first-child{margin-top:0}
+  .row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11.5px}
+  .row label{flex:1;color:var(--dim);cursor:pointer}
+  .row select{
+    background:rgba(255,255,255,.07);border:1px solid var(--line);
+    color:var(--ink);border-radius:6px;padding:2px 4px;font:inherit;font-size:11px;
+    max-width:150px;
+  }
+  .hint{font-size:10px;color:var(--faint);padding:1px 0 3px;line-height:1.4}
+  .row input[type=number]{
+    width:52px;background:rgba(255,255,255,.07);border:1px solid var(--line);
+    color:var(--ink);border-radius:6px;padding:2px 6px;font:inherit;font-size:11px;
+    text-align:right;
+  }
+  .sw{
+    position:relative;width:30px;height:17px;flex:0 0 auto;
+    background:rgba(255,255,255,.13);border-radius:20px;cursor:pointer;
+    transition:background .18s;
+  }
+  .sw::after{
+    content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;
+    background:#fff;border-radius:50%;transition:transform .18s;
+  }
+  .sw.on{background:var(--working)}
+  .sw.on::after{transform:translateX(13px)}
+  .themes{display:flex;gap:6px;margin-top:2px}
+  .th{
+    flex:1;text-align:center;padding:6px 4px;font-size:10.5px;
+    background:rgba(255,255,255,.05);border:1px solid transparent;
+    border-radius:8px;cursor:pointer;color:var(--dim);transition:.15s;
+  }
+  .th:hover{background:rgba(255,255,255,.1)}
+  .th.on{border-color:var(--working);color:var(--ink);background:rgba(61,220,151,.12)}
+
+  /* --------------------------------------------------------------- elenco */
   #list{
-    flex:1 1 auto; min-height:0;
-    overflow-y:auto; overflow-x:hidden;
-    display:flex; flex-direction:column; gap:7px;
-    padding-right:2px;
+    flex:1 1 auto;min-height:0;
+    overflow-y:auto;overflow-x:hidden;
+    display:flex;flex-direction:column;gap:7px;padding-right:2px;
   }
   #list::-webkit-scrollbar{width:7px}
   #list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:4px}
   #list::-webkit-scrollbar-track{background:transparent}
 
-  .group{
-    background:var(--panel);
-    border:1px solid var(--panel-line);
-    border-radius:13px;
-    padding:8px 9px 9px;
-    backdrop-filter:blur(22px) saturate(150%);
-    animation:rise .28s ease both;
-  }
-  @keyframes rise{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  .group{padding:8px 9px 9px}
+  .group.enter{animation:rise .3s ease both}
+  .group.leave{animation:fade .22s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @keyframes fade{to{opacity:0;transform:translateY(-4px)}}
 
   .group.crowded{
     border-color:rgba(255,107,138,.5);
-    box-shadow:0 0 0 1px rgba(255,107,138,.16), 0 0 22px -6px rgba(255,107,138,.45);
+    box-shadow:0 0 0 1px rgba(255,107,138,.16),0 0 22px -6px rgba(255,107,138,.45);
   }
-
   .ghead{
-    display:flex; align-items:center; gap:6px;
-    padding:0 3px 7px;
-    font-size:11px; font-weight:600; letter-spacing:.25px;
-    color:var(--ink-dim);
+    display:flex;align-items:center;gap:6px;padding:0 3px 7px;
+    font-size:11px;font-weight:600;letter-spacing:.25px;color:var(--dim);
   }
-  .ghead .nm{
-    flex:1; min-width:0;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
+  .ghead .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ghead .cnt{
-    flex:0 0 auto;
-    font-variant-numeric:tabular-nums;
-    background:rgba(255,255,255,.08);
-    border-radius:20px; padding:1px 6px; font-size:10px;
+    flex:0 0 auto;font-variant-numeric:tabular-nums;font-size:10px;
+    background:rgba(255,255,255,.08);border-radius:20px;padding:1px 6px;
   }
   .group.crowded .cnt{background:rgba(255,107,138,.2);color:#ffb3c4}
 
   .warn{
-    display:flex;align-items:center;gap:5px;
-    margin:0 1px 7px;padding:5px 8px;
-    background:rgba(255,107,138,.12);
-    border:1px solid rgba(255,107,138,.28);
-    border-radius:8px;
-    font-size:10.5px;color:#ffb3c4;line-height:1.35;
+    display:flex;align-items:center;gap:5px;margin:0 1px 7px;padding:5px 8px;
+    background:rgba(255,107,138,.12);border:1px solid rgba(255,107,138,.28);
+    border-radius:8px;font-size:10.5px;color:#ffb3c4;line-height:1.35;
   }
 
-  /* ---------- bubble ---------- */
+  /* --------------------------------------------------------------- bubble */
   .bubbles{display:flex;flex-direction:column;gap:5px}
-
   .bub{
-    -webkit-app-region:no-drag;
-    position:relative;
-    display:flex; align-items:flex-start; gap:8px;
-    padding:6px 9px 7px 8px;
-    border-radius:10px;
-    background:rgba(255,255,255,.045);
-    border:1px solid transparent;
-    cursor:pointer;
-    transition:background .16s, border-color .16s, transform .1s;
+    position:relative;display:flex;align-items:flex-start;gap:7px;
+    padding:6px 9px 7px 7px;border-radius:10px;
+    background:rgba(255,255,255,.045);border:1px solid transparent;
+    cursor:pointer;transition:background .16s,border-color .16s,transform .1s;
   }
+  body[data-theme=pixel] .bub{border-radius:2px}
   .bub:hover{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.14)}
   .bub:active{transform:scale(.985)}
+  .bub.enter{animation:rise .3s ease both}
+  .bub.leave{animation:fade .22s ease both}
   .bub.flash{animation:flash .5s ease}
   @keyframes flash{0%,100%{background:rgba(255,255,255,.045)}40%{background:rgba(94,179,255,.28)}}
 
-  .dot{
-    flex:0 0 auto; width:8px; height:8px; border-radius:50%;
-    margin-top:4px; background:var(--sleeping);
-  }
-  .bub[data-s=working]  .dot{background:var(--working); animation:pulse 1.5s ease-in-out infinite}
-  .bub[data-s=waiting]  .dot{background:var(--waiting); animation:pulse .95s ease-in-out infinite}
-  .bub[data-s=replied]  .dot{background:var(--replied)}
-  .bub[data-s=sleeping] .dot{background:var(--sleeping); opacity:.55}
-  .bub[data-guessed="1"] .dot{
-    background:transparent;
-    border:2px solid var(--waiting);
-    width:9px;height:9px;
-  }
-  @keyframes pulse{
-    0%,100%{box-shadow:0 0 0 0 currentColor;opacity:1}
-    50%{box-shadow:0 0 0 4px transparent;opacity:.62}
-  }
+  /* ------------------------------------------------- fantasmini piccoli */
+  .mini,.sw-g{--eye:#12141a}
+  body[data-theme=minimale] .mini,body[data-theme=minimale] .sw-g{--eye:transparent}
+  .mini svg,.sw-g svg{width:100%;height:100%;overflow:visible;display:block}
+  .mb{transition:fill .45s ease,stroke .45s ease;fill:var(--fill-sleeping);
+      stroke:var(--sleeping);stroke-width:1.5;stroke-linejoin:round}
+  .mface ellipse{fill:var(--eye)}
+  .mblush{fill:var(--blush)!important;opacity:.6}
+  .msleep path{stroke:var(--eye);stroke-width:1.1;fill:none;stroke-linecap:round}
+  body[data-theme=minimale] .mblush{opacity:0}
+  .mface{opacity:1;transition:opacity .3s}
+  .msleep{opacity:0;transition:opacity .3s}
+  [data-st=sleeping] .mface{opacity:0}
+  [data-st=sleeping] .msleep{opacity:1}
+
+  .mini{flex:0 0 auto;width:17px;height:19px;margin-top:1px}
+  .bub[data-s=working]  .mini{animation:bob 1.5s ease-in-out infinite}
+  .bub[data-s=waiting]  .mini{animation:bob .8s ease-in-out infinite}
+  .bub[data-s=replied]  .mini{animation:bob 3s ease-in-out infinite}
+  .bub[data-s=sleeping] .mini{opacity:.5}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
 
   .txt{flex:1;min-width:0}
-  .nme{
-    font-size:12px;font-weight:550;color:var(--ink);
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  }
+  .nme{font-size:12px;font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .bub[data-s=sleeping] .nme{color:#aab2be}
-  .act{
-    font-size:10.5px;color:var(--ink-dim);margin-top:1px;
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  }
+  .act{font-size:10.5px;color:var(--dim);margin-top:1px;
+       overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .bub[data-s=waiting] .act{color:var(--waiting)}
-  .ago{
-    flex:0 0 auto;font-size:10px;color:#6f7785;
-    margin-top:3px;font-variant-numeric:tabular-nums;
-  }
+  .ago{flex:0 0 auto;font-size:10px;color:var(--faint);margin-top:3px;
+       font-variant-numeric:tabular-nums}
 
-  /* ---------- fantasmino ---------- */
-  #ghost{
-    flex:0 0 auto;
-    -webkit-app-region:drag;
-    display:flex;align-items:flex-end;justify-content:center;
-    height:96px;position:relative;
+  .bub[data-forgotten="1"] .ago{color:var(--crowded)}
+  .kill{
+    flex:0 0 auto;margin-top:1px;font-size:11px;color:var(--faint);
+    padding:1px 4px;border-radius:4px;opacity:0;transition:.15s;
   }
-  #ghost svg{overflow:visible;animation:float 3.6s ease-in-out infinite}
+  .bub:hover .kill{opacity:1}
+  .kill:hover{background:rgba(255,107,138,.22);color:#ffb3c4}
+  .kill.armed{opacity:1;background:rgba(255,107,138,.28);color:#fff}
+
+  /* ---------------------------------------------------------- fantasmino */
+  #stage{flex:0 0 auto;position:relative;height:104px;display:flex;
+         align-items:flex-end;justify-content:center}
+  #big{overflow:visible;animation:float 3.6s ease-in-out infinite}
   @keyframes float{
     0%,100%{transform:translateY(0) rotate(-1deg)}
     50%{transform:translateY(-9px) rotate(1deg)}
   }
-  body[data-mood=working] #ghost svg{animation-duration:1.9s}
-  body[data-mood=waiting] #ghost svg{animation-duration:1.1s}
-  body[data-mood=sleeping] #ghost svg{animation-duration:5.5s}
+  body[data-mood=working]  #big{animation-duration:1.9s}
+  body[data-mood=waiting]  #big{animation-duration:1.1s}
+  body[data-mood=sleeping] #big{animation-duration:5.5s}
+  #big.hop{animation:hop .62s cubic-bezier(.3,1.4,.5,1)}
+  @keyframes hop{0%{transform:translateY(0) scale(1)}
+                 35%{transform:translateY(-26px) scale(1.06,.94)}
+                 70%{transform:translateY(0) scale(.94,1.06)}
+                 100%{transform:translateY(0) scale(1)}}
+  #big.spin{animation:twirl .75s ease}
+  @keyframes twirl{to{transform:rotate(360deg)}}
 
-  .body-fill{transition:fill .5s ease, filter .5s ease}
-  .skirt{animation:wave 2.6s ease-in-out infinite}
-  @keyframes wave{
-    0%,100%{d:path("M12 62 Q22 76 32 62 Q42 76 52 62 Q62 76 72 62 L72 50 L12 50 Z")}
-    50%{d:path("M12 66 Q22 54 32 66 Q42 54 52 66 Q62 54 72 66 L72 50 L12 50 Z")}
+  /* colore del corpo e alone: guidati dallo stato, senza toccare la JS */
+  #big{--ghost:var(--fill-sleeping);--aura:var(--sleeping)}
+  body[data-mood=working]  #big{--ghost:var(--fill-working); --aura:var(--working)}
+  body[data-mood=waiting]  #big{--ghost:var(--fill-waiting); --aura:var(--waiting)}
+  body[data-mood=replied]  #big{--ghost:var(--fill-replied); --aura:var(--replied)}
+  body[data-mood=crowded]  #big{--ghost:var(--fill-crowded); --aura:var(--crowded)}
+
+  #body{
+    fill:var(--ghost);stroke:var(--outline);stroke-width:2.4;
+    stroke-linejoin:round;
+    transition:fill .6s ease;
   }
-  .eye{transition:fill .4s ease}
+  #halo{fill:var(--aura);opacity:.20;transition:fill .6s ease}
+  .blushc{fill:var(--blush);opacity:.55}
+  .eye{transition:all .4s ease}
   .blink{animation:blink 4.3s infinite}
-  @keyframes blink{
-    0%,95%,100%{transform:scaleY(1)}
-    97%{transform:scaleY(.08)}
-  }
+  @keyframes blink{0%,95%,100%{transform:scaleY(1)}97%{transform:scaleY(.08)}}
+  #mouth{transition:d .35s ease}
+
+  /* minimale: niente faccia ne' guance, contorno sottile */
+  body[data-theme=minimale] .face,
+  body[data-theme=minimale] #skin{opacity:0}
+  body[data-theme=minimale] #body{stroke-width:1.6;fill-opacity:.85}
+  body[data-theme=minimale] #halo{opacity:.10}
+  /* pixel: occhi quadrati al posto di quelli tondi */
+  .eyepx{display:none;fill:var(--outline)}
+  body[data-theme=pixel] .eye,body[data-theme=pixel] .shine{display:none}
+  body[data-theme=pixel] .eyepx{display:block}
+  body[data-theme=pixel] #body{stroke-width:2.8}
+  body[data-theme=pixel] #halo{opacity:.13}
+
+  /* accessori animati delle skin */
+  .floaty{animation:floaty 3.2s ease-in-out infinite}
+  @keyframes floaty{0%,100%{transform:translateY(0);opacity:.9}
+                    50%{transform:translateY(-5px);opacity:1}}
+  .twinkle{animation:twinkle 2.4s ease-in-out infinite;transform-origin:67px 25px}
+  @keyframes twinkle{0%,100%{opacity:.35;transform:scale(.8)}
+                     50%{opacity:1;transform:scale(1.15)}}
+
   #zzz{opacity:0;transition:opacity .5s}
   body[data-mood=sleeping] #zzz{opacity:1}
-  #zzz text{animation:rise-z 3.4s ease-out infinite}
+  #zzz text{animation:riseZ 3.4s ease-out infinite}
   #zzz text:nth-child(2){animation-delay:1.15s}
   #zzz text:nth-child(3){animation-delay:2.3s}
-  @keyframes rise-z{
+  @keyframes riseZ{
     0%{opacity:0;transform:translate(0,0) scale(.6)}
     25%{opacity:.9}
     100%{opacity:0;transform:translate(9px,-24px) scale(1.15)}
@@ -207,42 +297,116 @@
   #swirl g{animation:spin 3.1s linear infinite;transform-origin:42px 8px}
   @keyframes spin{to{transform:rotate(360deg)}}
 
+  /* --------------------------------------------- sciame di fantasmini */
+  #swarm{position:absolute;inset:0;pointer-events:none}
+  .sw-g{
+    position:absolute;width:15px;height:17px;
+    animation:drift var(--dur,5s) ease-in-out infinite;
+    animation-delay:var(--del,0s);
+    transition:left .9s ease,top .9s ease,opacity .5s ease;
+  }
+  .sw-g.asleep{opacity:.42;animation-duration:9s}
+  @keyframes drift{
+    0%,100%{transform:translate(0,0)}
+    33%{transform:translate(3px,-6px)}
+    66%{transform:translate(-3px,-3px)}
+  }
+
   #say{
-    position:absolute; bottom:70px; left:50%;
-    transform:translateX(-50%);
-    background:var(--panel);
-    border:1px solid var(--panel-line);
-    backdrop-filter:blur(22px);
-    border-radius:11px; padding:5px 11px;
-    font-size:11px; color:var(--ink); white-space:nowrap;
-    opacity:0; transition:opacity .4s;
-    pointer-events:none;
+    position:absolute;bottom:74px;left:50%;transform:translateX(-50%);
+    background:var(--panel);border:1px solid var(--line);
+    backdrop-filter:blur(22px);border-radius:11px;padding:5px 11px;
+    font-size:11px;white-space:nowrap;opacity:0;transition:opacity .4s;
+    pointer-events:none;z-index:3;
   }
   #say.on{opacity:1}
 
-  #empty{
-    text-align:center;color:var(--ink-dim);font-size:11.5px;
-    padding:22px 10px;line-height:1.6;
+  #empty{text-align:center;color:var(--dim);font-size:11.5px;padding:22px 10px;line-height:1.6}
+
+  /* maniglia di ridimensionamento */
+  #grab{
+    position:fixed;right:2px;bottom:2px;width:16px;height:16px;
+    cursor:nwse-resize;opacity:.3;transition:opacity .15s;z-index:5;
+  }
+  #grab:hover{opacity:.85}
+  #grab::after{
+    content:"";position:absolute;right:3px;bottom:3px;width:8px;height:8px;
+    border-right:2px solid var(--ink);border-bottom:2px solid var(--ink);
+    border-radius:0 0 3px 0;
   }
 </style>
 </head>
-<body data-mood="sleeping">
+<body data-mood="sleeping" data-theme="morbido">
 
-  <div id="grip">
-    <b>COMPANION</b>
+  <div id="grip" class="card">
+    <span class="ttl">PEEKABOO</span>
     <div class="spacer"></div>
     <div id="tally"></div>
-    <div id="close" title="Chiudi">✕</div>
+    <span class="ico" id="dnd"  title="Non disturbare">☾</span>
+    <span class="ico" id="gear" title="Impostazioni">⚙</span>
+    <span class="ico" id="tall" title="Tutta l'altezza dello schermo">⇕</span>
+    <span class="ico" id="close" title="Chiudi">✕</span>
+  </div>
+
+  <div id="panel" class="card">
+    <div class="sec">Aspetto</div>
+    <div class="themes" id="themes">
+      <div class="th" data-theme="morbido">morbido</div>
+      <div class="th" data-theme="pixel">pixel</div>
+      <div class="th" data-theme="minimale">minimale</div>
+    </div>
+    <div class="row"><label for="s-swarm">Fantasmini attorno</label>
+      <div class="sw" id="s-swarm" data-key="swarm"></div></div>
+    <div class="row"><label for="s-pers">Reazioni e commenti</label>
+      <div class="sw" id="s-pers" data-key="personality"></div></div>
+    <div class="row"><label>Vestito</label>
+      <select id="skinSel" data-key="skin">
+        <option value="auto">automatico (stagione)</option>
+        <option value="off">nessuno</option>
+        <option value="santa">cappello di Babbo Natale</option>
+        <option value="winter">berretto invernale</option>
+        <option value="hearts">cuoricini</option>
+        <option value="bunny">orecchie da coniglio</option>
+        <option value="flowers">corona di fiori</option>
+        <option value="sunglasses">occhiali da sole</option>
+        <option value="witch">cappello da strega</option>
+      </select></div>
+    <div class="hint" id="skinHint"></div>
+
+    <div class="sec">Notifiche di sistema</div>
+    <div class="row"><label>Quando una sessione ti aspetta</label>
+      <div class="sw" data-key="notifications.waiting"></div></div>
+    <div class="row"><label>Quando una sessione ha risposto</label>
+      <div class="sw" data-key="notifications.replied"></div></div>
+    <div class="row"><label>Sessioni dimenticate</label>
+      <div class="sw" data-key="notifications.forgotten"></div></div>
+    <div class="row"><label>Suono</label>
+      <div class="sw" data-key="notifications.sound"></div></div>
+
+    <div class="sec">Soglie</div>
+    <div class="row"><label>Troppe sessioni oltre</label>
+      <input type="number" min="1" max="20" data-key="crowdLimit"></div>
+    <div class="row"><label>Dorme dopo (minuti)</label>
+      <input type="number" min="1" max="600" data-key="sleepAfterMinutes"></div>
+    <div class="row"><label>Dimenticata dopo (ore)</label>
+      <input type="number" min="1" max="336" data-key="forgottenAfterHours"></div>
+
+    <div class="sec">Sistema</div>
+    <div class="row"><label>Avvio all'accensione del Mac</label>
+      <div class="sw" data-key="autostart"></div></div>
+    <div class="row"><label>Sempre in primo piano</label>
+      <div class="sw" data-key="alwaysOnTop"></div></div>
   </div>
 
   <div id="list"></div>
 
-  <div id="ghost">
+  <div id="stage">
+    <div id="swarm"></div>
     <div id="say"></div>
-    <svg width="120" height="96" viewBox="0 0 84 84" aria-hidden="true">
+    <svg id="big" width="120" height="96" viewBox="0 0 84 84">
       <defs>
         <radialGradient id="glow" cx="50%" cy="42%" r="62%">
-          <stop offset="0%"  stop-color="#fff" stop-opacity=".30"/>
+          <stop offset="0%" stop-color="#fff" stop-opacity=".30"/>
           <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
         </radialGradient>
         <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
@@ -251,189 +415,532 @@
         </filter>
       </defs>
 
-      <!-- ombra a terra -->
-      <ellipse cx="42" cy="79" rx="17" ry="3.4" fill="#000" opacity=".26"/>
+      <ellipse cx="42" cy="80" rx="16" ry="3.2" fill="#000" opacity=".24"/>
 
-      <g filter="url(#soft)">
-        <!-- corpo -->
-        <path class="body-fill" d="M12 50 A30 30 0 0 1 72 50 L72 62 Q62 76 52 62 Q42 76 32 62 Q22 76 12 62 Z"
-              fill="var(--sleeping)" opacity=".95"/>
-        <path class="body-fill skirt" d="M12 62 Q22 76 32 62 Q42 76 52 62 Q62 76 72 62 L72 50 L12 50 Z"
-              fill="var(--sleeping)" opacity=".95"/>
-      </g>
-      <path d="M12 50 A30 30 0 0 1 72 50 L72 60 L12 60 Z" fill="url(#glow)"/>
+      <!-- alone del colore dello stato, dietro al corpo -->
+      <ellipse id="halo" cx="42" cy="46" rx="33" ry="34" filter="url(#soft)"/>
 
-      <!-- occhi -->
-      <g class="blink" style="transform-origin:42px 42px">
-        <ellipse class="eye" id="eyeL" cx="31" cy="42" rx="4.4" ry="5.4" fill="#171a21"/>
-        <ellipse class="eye" id="eyeR" cx="53" cy="42" rx="4.4" ry="5.4" fill="#171a21"/>
-        <circle cx="32.6" cy="40.2" r="1.5" fill="#fff" opacity=".92"/>
-        <circle cx="54.6" cy="40.2" r="1.5" fill="#fff" opacity=".92"/>
-      </g>
+      <!-- corpo: cupola tonda e fondo a quattro onde, come negli sticker -->
+      <path id="body" d="M14 50 A28 28 0 0 1 70 50 L70 63
+                         Q63 76 56 63 Q49 76 42 63 Q35 76 28 63 Q21 76 14 63 Z"/>
 
-      <!-- guance -->
-      <ellipse cx="22" cy="50" rx="4" ry="2.4" fill="#ff8fa8" opacity=".34"/>
-      <ellipse cx="62" cy="50" rx="4" ry="2.4" fill="#ff8fa8" opacity=".34"/>
-
-      <!-- bocca -->
-      <path id="mouth" d="M38 53 Q42 56 46 53" stroke="#171a21" stroke-width="1.9"
-            fill="none" stroke-linecap="round" style="transition:d .35s ease"/>
-
-      <!-- zzz -->
-      <g id="zzz" fill="#aab2be" font-size="10" font-weight="700"
-         font-family="-apple-system,system-ui,sans-serif">
-        <text x="64" y="26">z</text>
-        <text x="64" y="26">z</text>
-        <text x="64" y="26">z</text>
+      <g class="face">
+        <g class="blink" style="transform-origin:42px 44px">
+          <ellipse class="eye" id="eyeL" cx="32" cy="44" rx="4.6" ry="5.8" fill="var(--outline)"/>
+          <ellipse class="eye" id="eyeR" cx="52" cy="44" rx="4.6" ry="5.8" fill="var(--outline)"/>
+          <rect class="eyepx" x="28" y="39" width="8" height="9"/>
+          <rect class="eyepx" x="48" y="39" width="8" height="9"/>
+          <circle class="shine" cx="33.8" cy="42" r="1.6" fill="#fff" opacity=".95"/>
+          <circle class="shine" cx="53.8" cy="42" r="1.6" fill="#fff" opacity=".95"/>
+        </g>
+        <ellipse class="blushc" cx="22.5" cy="53" rx="4.6" ry="2.8"/>
+        <ellipse class="blushc" cx="61.5" cy="53" rx="4.6" ry="2.8"/>
+        <path id="mouth" d="M38 54 Q42 57 46 54" stroke="var(--outline)" stroke-width="1.9"
+              fill="none" stroke-linecap="round"/>
       </g>
 
-      <!-- punto esclamativo -->
+      <!-- skin stagionale: riempita dalla JS -->
+      <g id="skin"></g>
+
+      <g id="zzz" fill="#aab2be" font-size="10" font-weight="700" font-family="var(--font)">
+        <text x="64" y="26">z</text><text x="64" y="26">z</text><text x="64" y="26">z</text>
+      </g>
       <g id="bang">
         <rect x="39.6" y="4" width="4.8" height="11" rx="2.4" fill="var(--waiting)"/>
         <circle cx="42" cy="19" r="2.6" fill="var(--waiting)"/>
       </g>
-
-      <!-- vortice di confusione -->
-      <g id="swirl">
-        <g>
-          <circle cx="42" cy="1" r="2.2" fill="var(--crowded)"/>
-          <circle cx="49" cy="8" r="2.2" fill="var(--crowded)" opacity=".7"/>
-          <circle cx="42" cy="15" r="2.2" fill="var(--crowded)" opacity=".45"/>
-          <circle cx="35" cy="8" r="2.2" fill="var(--crowded)" opacity=".25"/>
-        </g>
-      </g>
+      <g id="swirl"><g>
+        <circle cx="42" cy="1" r="2.2" fill="var(--crowded)"/>
+        <circle cx="49" cy="8" r="2.2" fill="var(--crowded)" opacity=".7"/>
+        <circle cx="42" cy="15" r="2.2" fill="var(--crowded)" opacity=".45"/>
+        <circle cx="35" cy="8" r="2.2" fill="var(--crowded)" opacity=".25"/>
+      </g></g>
     </svg>
   </div>
 
+  <div id="grab" title="Trascina per ridimensionare"></div>
+
 <script>
-const MOOD_COLOR = {
-  working:'var(--working)', waiting:'var(--waiting)',
-  replied:'var(--replied)', sleeping:'var(--sleeping)', crowded:'var(--crowded)'
-};
+"use strict";
+
+const COLOR = {working:'var(--working)',waiting:'var(--waiting)',replied:'var(--replied)',
+               sleeping:'var(--sleeping)',crowded:'var(--crowded)'};
 const MOUTH = {
-  working:'M37 53 Q42 55.5 47 53',      // sorriso lieve, concentrato
-  waiting:'M38.5 54 A3.5 3.5 0 1 1 45.5 54 A3.5 3.5 0 1 1 38.5 54', // "o" di attesa
-  replied:'M36 52 Q42 58 48 52',        // sorriso pieno
-  sleeping:'M39 54 Q42 54 45 54',       // riga piatta
-  crowded:'M37 55 Q42 51.5 47 55'       // bocca all'ingiu'
+  working:'M37 53 Q42 55.5 47 53',
+  waiting:'M38.5 54 A3.5 3.5 0 1 1 45.5 54 A3.5 3.5 0 1 1 38.5 54',
+  replied:'M36 52 Q42 58 48 52',
+  sleeping:'M39 54 Q42 54 45 54',
+  crowded:'M37 55 Q42 51.5 47 55'
 };
-const LABEL = {
-  working:'al lavoro', waiting:'aspetta te',
-  replied:'ha risposto', sleeping:'dorme'
+const LABEL = {working:'al lavoro',waiting:'aspetta te',replied:'ha risposto',sleeping:'dorme'};
+
+const native = window.webkit?.messageHandlers?.app;
+const send = m => native && native.postMessage(m);
+const $ = s => document.querySelector(s);
+
+/** Fantasmino piccolo, inline: dentro <use> il CSS del documento non arriverebbe. */
+function miniSVG(){
+  return `<svg viewBox="0 0 22 24">
+    <path class="mb" d="M3 12 A8 8 0 0 1 19 12 L19 17 Q17 22 15 17 Q13 22 11 17 Q9 22 7 17 Q5 22 3 17 Z"/>
+    <g class="mface">
+      <ellipse cx="8" cy="12" rx="1.7" ry="2.1"/><ellipse cx="14" cy="12" rx="1.7" ry="2.1"/>
+      <ellipse class="mblush" cx="4.8" cy="14.6" rx="1.5" ry="1"/>
+      <ellipse class="mblush" cx="17.2" cy="14.6" rx="1.5" ry="1"/>
+    </g>
+    <g class="msleep">
+      <path d="M6.4 12 Q8 13.6 9.6 12"/><path d="M12.4 12 Q14 13.6 15.6 12"/>
+    </g>
+  </svg>`;
+}
+
+/** Tinge un mini fantasmino e gli chiude gli occhi se dorme. */
+const MINI_FILL = {working:'var(--fill-working)',waiting:'var(--fill-waiting)',
+                   replied:'var(--fill-replied)',sleeping:'var(--fill-sleeping)'};
+function paintMini(host, state){
+  if (host.dataset.st === state) return;
+  host.dataset.st = state;
+  const body = host.querySelector('.mb');
+  if (body){
+    body.style.fill = MINI_FILL[state] || MINI_FILL.sleeping;
+    body.style.stroke = COLOR[state];
+  }
+}
+
+// ------------------------------------------------------------ skin stagionali
+/** Ogni skin e' un pezzo di SVG che si appoggia sopra al fantasmino. */
+const SKINS = {
+  santa: `
+    <path d="M27 28 C28 12 40 6 52 9 C58 10.5 59.5 15 55.5 18 L46 28 Z"
+          fill="#e0384a" stroke="var(--outline)" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="22" y="25" width="40" height="8" rx="4"
+          fill="#fdfdfd" stroke="var(--outline)" stroke-width="2"/>
+    <circle cx="56" cy="15" r="5" fill="#fdfdfd" stroke="var(--outline)" stroke-width="2"/>`,
+  winter: `
+    <path d="M24 30 Q24 12 42 12 Q60 12 60 30 Z"
+          fill="#6fb7e8" stroke="var(--outline)" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="35" cy="20" r="1.7" fill="#fdfdfd"/><circle cx="47" cy="18" r="1.7" fill="#fdfdfd"/>
+    <circle cx="41" cy="25" r="1.7" fill="#fdfdfd"/>
+    <rect x="21" y="27" width="42" height="7" rx="3.5"
+          fill="#fdfdfd" stroke="var(--outline)" stroke-width="2"/>
+    <circle cx="42" cy="9" r="4.6" fill="#fdfdfd" stroke="var(--outline)" stroke-width="2"/>`,
+  hearts: `
+    <g class="floaty">
+      <path d="M62 16 c0-2.4 3-3.2 4.2-1.2 1.2-2 4.2-1.2 4.2 1.2 0 2.6-4.2 5.4-4.2 5.4S62 18.6 62 16z"
+            fill="#ff8fb0" stroke="var(--outline)" stroke-width="1.4"/>
+    </g>
+    <g class="floaty" style="animation-delay:1.1s">
+      <path d="M15 24 c0-1.8 2.3-2.4 3.2-.9 .9-1.5 3.2-.9 3.2.9 0 2-3.2 4.1-3.2 4.1S15 26 15 24z"
+            fill="#ffb3c8" stroke="var(--outline)" stroke-width="1.2"/>
+    </g>`,
+  flowers: `
+    <g id="crown"></g>`,
+  sunglasses: `
+    <rect x="22.5" y="38" width="18" height="11.5" rx="4.5"
+          fill="#1c2027" stroke="var(--outline)" stroke-width="1.6"/>
+    <rect x="43.5" y="38" width="18" height="11.5" rx="4.5"
+          fill="#1c2027" stroke="var(--outline)" stroke-width="1.6"/>
+    <path d="M40.5 42 h3" stroke="var(--outline)" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M26 41 l6 3" stroke="#ffffff" stroke-width="1.6" opacity=".5" stroke-linecap="round"/>
+    <g class="twinkle">
+      <path d="M66 20 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6 z" fill="#ffd75e"/>
+    </g>`,
+  witch: `
+    <path d="M44 2 L57 26 L31 26 Z" fill="#2c2742"
+          stroke="var(--outline)" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M35 18 h16 l1.5 5 h-19 z" fill="#7d5cc6"/>
+    <ellipse cx="42" cy="27" rx="23" ry="5.5" fill="#2c2742"
+             stroke="var(--outline)" stroke-width="2"/>`,
+  bunny: `
+    <ellipse cx="33" cy="12" rx="4.4" ry="11" transform="rotate(-12 33 12)"
+             fill="var(--ghost)" stroke="var(--outline)" stroke-width="2"/>
+    <ellipse cx="51" cy="12" rx="4.4" ry="11" transform="rotate(12 51 12)"
+             fill="var(--ghost)" stroke="var(--outline)" stroke-width="2"/>
+    <ellipse cx="33" cy="13" rx="1.9" ry="6.5" transform="rotate(-12 33 13)" fill="#ffb3c8"/>
+    <ellipse cx="51" cy="13" rx="1.9" ry="6.5" transform="rotate(12 51 13)" fill="#ffb3c8"/>`,
 };
 
+/** Corona di fiori: generata, sarebbe illeggibile scritta a mano. */
+function flowerCrown(){
+  const petals = ['#ffb3c8','#ffd75e','#b8e3ff','#d9b8ff','#a8e6c0'];
+  let out = '';
+  for (let i = 0; i < 5; i++){
+    const x = 25 + i * 8.5, y = 27 - Math.abs(i - 2) * 1.6, c = petals[i];
+    for (let p = 0; p < 5; p++){
+      const a = (p / 5) * Math.PI * 2;
+      out += `<circle cx="${(x + Math.cos(a) * 2.9).toFixed(1)}"
+                      cy="${(y + Math.sin(a) * 2.9).toFixed(1)}" r="2.1"
+                      fill="${c}" stroke="var(--outline)" stroke-width="1.1"/>`;
+    }
+    out += `<circle cx="${x}" cy="${y}" r="1.5" fill="#fff3c4" stroke="var(--outline)" stroke-width="1"/>`;
+  }
+  return out;
+}
+
+/** Calendario delle skin: mese e giorno decidono il vestito. */
+function skinForDate(d){
+  const m = d.getMonth() + 1, day = d.getDate();
+  if (m === 12) return 'santa';
+  if (m === 1 || (m === 2 && day < 10)) return 'winter';
+  if (m === 2 && day >= 10 && day <= 18) return 'hearts';
+  if (m === 3 && day >= 25) return 'bunny';
+  if (m === 4 && day <= 10) return 'bunny';
+  if (m === 4 || m === 5) return 'flowers';
+  if (m >= 6 && m <= 8) return 'sunglasses';
+  if ((m === 10 && day >= 21) || (m === 11 && day <= 2)) return 'witch';
+  return '';
+}
+
+let shownSkin = null;
+function renderSkin(){
+  const choice = settings.skin ?? 'auto';
+  const want = choice === 'auto' ? skinForDate(new Date())
+             : choice === 'off'  ? ''
+             : choice;
+  if (want === shownSkin) return;
+  shownSkin = want;
+  const g = $('#skin');
+  g.innerHTML = SKINS[want] || '';
+  const crown = g.querySelector('#crown');
+  if (crown) crown.innerHTML = flowerCrown();
+}
+
+function esc(s){
+  return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
 function ago(s){
-  if (s < 60)    return s + 's';
-  if (s < 3600)  return Math.round(s/60) + 'm';
+  if (s < 60) return s + 's';
+  if (s < 3600) return Math.round(s/60) + 'm';
   if (s < 86400) return Math.round(s/3600) + 'h';
   return Math.round(s/86400) + 'g';
 }
+/** Scrive solo se il valore e' cambiato: e' questo che evita il tremolio. */
+function setText(el, v){ if (el && el.textContent !== v) el.textContent = v; }
+function setAttr(el, k, v){ if (el && el.getAttribute(k) !== String(v)) el.setAttribute(k, String(v)); }
 
+// ---------------------------------------------------------------- il fantasmino
 let sayTimer = null;
-function say(msg, ms = 3400){
-  const el = document.getElementById('say');
-  el.textContent = msg;
+function say(msg, ms = 3600){
+  const el = $('#say');
+  setText(el, msg);
   el.classList.add('on');
   clearTimeout(sayTimer);
   sayTimer = setTimeout(() => el.classList.remove('on'), ms);
 }
 
-let lastMood = null, lastWaiting = 0;
+function react(kind){
+  if (!settings.personality) return;
+  const g = $('#big');
+  g.classList.remove('hop','spin');
+  void g.offsetWidth;             // forza il restart dell'animazione
+  g.classList.add(kind);
+  setTimeout(() => g.classList.remove(kind), 800);
+}
 
-function render(d){
-  // --- fantasmino
-  document.body.dataset.mood = d.mood;
-  const col = MOOD_COLOR[d.mood];
-  document.querySelectorAll('.body-fill').forEach(p => p.style.fill = col);
-  document.getElementById('mouth').setAttribute('d', MOUTH[d.mood]);
-  const sleepy = d.mood === 'sleeping';
-  document.querySelectorAll('.eye').forEach(e => {
-    e.setAttribute('ry', sleepy ? 1.4 : 5.4);
-    e.setAttribute('cy', sleepy ? 44 : 42);
+const POKES = ['bù!','ehi!','ciao','sono qui','uh!','buh!'];
+$('#stage').addEventListener('click', ev => {
+  if (ev.target.closest('#swarm')) return;
+  react(Math.random() < .3 ? 'spin' : 'hop');
+  if (settings.personality) say(POKES[Math.floor(Math.random()*POKES.length)], 1600);
+});
+
+// ------------------------------------------------------------------ lo sciame
+/** Posizioni fisse per indice: i fantasmini non saltellano a ogni aggiornamento. */
+function swarmSpot(i, n){
+  const cols = Math.min(n, 9);
+  const col = i % cols, row = Math.floor(i / cols);
+  const spread = 78;
+  const x = 50 + (col - (cols - 1) / 2) * (spread / Math.max(cols, 1));
+  const y = 6 + row * 26 + (col % 2 ? 7 : 0);
+  return [x, y];
+}
+
+const swarmNodes = new Map();       // pid -> elemento
+function renderSwarm(all){
+  const host = $('#swarm');
+  if (!settings.swarm){
+    if (swarmNodes.size){ host.innerHTML = ''; swarmNodes.clear(); }
+    return;
+  }
+  const show = all.slice(0, 18);
+  const seen = new Set();
+
+  show.forEach((s, i) => {
+    seen.add(s.pid);
+    let el = swarmNodes.get(s.pid);
+    if (!el){
+      el = document.createElement('div');
+      el.className = 'sw-g';
+      el.style.setProperty('--dur', (4.2 + (i % 5) * .8) + 's');
+      el.style.setProperty('--del', ((i % 7) * .35) + 's');
+      el.innerHTML = miniSVG();
+      host.appendChild(el);
+      swarmNodes.set(s.pid, el);
+    }
+    const [x, y] = swarmSpot(i, show.length);
+    if (el.style.left !== x + '%'){ el.style.left = x + '%'; el.style.top = y + 'px'; }
+    paintMini(el, s.state);
+    el.classList.toggle('asleep', s.state === 'sleeping');
   });
 
-  // --- conteggi
-  const c = d.counts || {};
-  document.getElementById('tally').innerHTML = ['working','waiting','replied','sleeping']
-    .filter(k => c[k])
-    .map(k => `<span class="t-${k}"><i></i>${c[k]}</span>`).join('');
+  for (const [pid, el] of swarmNodes)
+    if (!seen.has(pid)){ el.remove(); swarmNodes.delete(pid); }
+}
 
-  // --- gruppi
-  const list = document.getElementById('list');
-  if (!d.groups || !d.groups.length){
-    list.innerHTML = '<div id="empty">Nessuna sessione Claude attiva.<br>Apri un terminale e cominciamo.</div>';
-  } else {
-    list.innerHTML = d.groups.map(g => `
-      <div class="group${g.crowded ? ' crowded' : ''}">
-        <div class="ghead">
-          <span class="nm" title="${esc(g.cwd)}">${esc(g.project)}</span>
-          <span class="cnt">${g.awake}/${g.sessions.length}</span>
-        </div>
-        ${g.crowded ? `<div class="warn">⚠︎ ${g.awake} sessioni sveglie qui — oltre ${d.crowdLimit} si accavallano</div>` : ''}
-        <div class="bubbles">
-          ${g.sessions.map(s => `
-            <div class="bub" data-s="${s.state}" data-guessed="${s.guessed ? 1 : 0}"
-                 data-pid="${s.pid}" title="${esc(LABEL[s.state])}${s.guessed ? ' (stima)' : ''} — clicca per aprire il terminale">
-              <div class="dot"></div>
-              <div class="txt">
-                <div class="nme">${esc(s.name)}</div>
-                <div class="act">${esc(s.activity || '')}</div>
-              </div>
-              <div class="ago">${ago(s.idleFor)}</div>
-            </div>`).join('')}
-        </div>
-      </div>`).join('');
+// -------------------------------------------------------- elenco senza tremolio
+const groupNodes = new Map();       // progetto -> {el, bubs:Map}
+
+function bubbleHTML(){
+  return `<div class="mini">${miniSVG()}</div>
+          <div class="txt"><div class="nme"></div><div class="act"></div></div>
+          <div class="ago"></div><div class="kill" title="Chiudi la sessione">✕</div>`;
+}
+
+function updateBubble(el, s){
+  if (el.dataset.s !== s.state){
+    el.dataset.s = s.state;
+    el.title = LABEL[s.state] + (s.guessed ? ' (stima)' : '') + ' — clicca per aprire il terminale';
+    paintMini(el.querySelector('.mini'), s.state);
+  }
+  el.dataset.forgotten = s.forgotten ? '1' : '0';
+  el.dataset.pid = s.pid;
+  setText(el.querySelector('.nme'), s.name);
+  setText(el.querySelector('.act'), s.activity || '');
+  setText(el.querySelector('.ago'), ago(s.idleFor));
+}
+
+function renderList(d){
+  const host = $('#list');
+  const groups = d.groups || [];
+
+  if (!groups.length){
+    if (!host.querySelector('#empty')){
+      host.innerHTML = '<div id="empty">Nessuna sessione Claude attiva.<br>Apri un terminale e cominciamo.</div>';
+      groupNodes.clear();
+    }
+    return;
+  }
+  const stale = host.querySelector('#empty');
+  if (stale) stale.remove();
+
+  const seen = new Set();
+  groups.forEach((g, gi) => {
+    seen.add(g.project);
+    let rec = groupNodes.get(g.project);
+
+    if (!rec){
+      const el = document.createElement('div');
+      el.className = 'group card enter';
+      el.innerHTML = `<div class="ghead"><span class="nm"></span><span class="cnt"></span></div>
+                      <div class="warnbox"></div><div class="bubbles"></div>`;
+      host.appendChild(el);
+      setTimeout(() => el.classList.remove('enter'), 400);
+      rec = {el, bubs:new Map()};
+      groupNodes.set(g.project, rec);
+    }
+    // ordine dei gruppi senza ricostruire nulla
+    if (host.children[gi] !== rec.el) host.insertBefore(rec.el, host.children[gi] || null);
+
+    rec.el.classList.toggle('crowded', !!g.crowded);
+    const nm = rec.el.querySelector('.nm');
+    setText(nm, g.project);
+    if (nm.title !== g.cwd) nm.title = g.cwd;
+    setText(rec.el.querySelector('.cnt'), `${g.awake}/${g.sessions.length}`);
+
+    const wb = rec.el.querySelector('.warnbox');
+    const want = g.crowded
+      ? `<div class="warn">⚠︎ ${g.awake} sessioni sveglie qui — oltre ${d.crowdLimit} si accavallano</div>` : '';
+    if (wb.innerHTML !== want) wb.innerHTML = want;
+
+    // bubble
+    const box = rec.el.querySelector('.bubbles');
+    const alive = new Set();
+    g.sessions.forEach((s, si) => {
+      alive.add(s.pid);
+      let b = rec.bubs.get(s.pid);
+      if (!b){
+        b = document.createElement('div');
+        b.className = 'bub enter';
+        b.innerHTML = bubbleHTML();
+        box.appendChild(b);
+        setTimeout(() => b.classList.remove('enter'), 400);
+        rec.bubs.set(s.pid, b);
+      }
+      if (box.children[si] !== b) box.insertBefore(b, box.children[si] || null);
+      updateBubble(b, s);
+    });
+    for (const [pid, b] of rec.bubs)
+      if (!alive.has(pid)){ drop(b); rec.bubs.delete(pid); }
+  });
+
+  for (const [name, rec] of groupNodes)
+    if (!seen.has(name)){ drop(rec.el); groupNodes.delete(name); }
+}
+
+function drop(el){
+  el.classList.add('leave');
+  setTimeout(() => el.remove(), 260);
+}
+
+// ------------------------------------------------------------------ impostazioni
+let settings = {theme:'morbido', swarm:true, personality:true,
+                notifications:{}, autostart:false, alwaysOnTop:true};
+
+function get(obj, path){ return path.split('.').reduce((o,k) => o?.[k], obj); }
+function setPath(obj, path, v){
+  const ks = path.split('.'), last = ks.pop();
+  ks.reduce((o,k) => (o[k] ??= {}), obj)[last] = v;
+}
+
+function paintSettings(){
+  document.body.dataset.theme = settings.theme || 'morbido';
+  document.querySelectorAll('.th').forEach(t =>
+    t.classList.toggle('on', t.dataset.theme === settings.theme));
+  document.querySelectorAll('.sw[data-key]').forEach(sw =>
+    sw.classList.toggle('on', !!get(settings, sw.dataset.key)));
+  document.querySelectorAll('input[data-key]').forEach(inp => {
+    const v = get(settings, inp.dataset.key);
+    if (document.activeElement !== inp && inp.value !== String(v)) inp.value = v;
+  });
+  const sel = $('#skinSel');
+  if (sel && sel.value !== (settings.skin ?? 'auto')) sel.value = settings.skin ?? 'auto';
+
+  const SKIN_IT = {santa:'cappello di Babbo Natale', winter:'berretto invernale',
+    hearts:'cuoricini', bunny:'orecchie da coniglio', flowers:'corona di fiori',
+    sunglasses:'occhiali da sole', witch:'cappello da strega'};
+  const auto = skinForDate(new Date());
+  setText($('#skinHint'), (settings.skin ?? 'auto') === 'auto'
+    ? (auto ? `In questo periodo: ${SKIN_IT[auto]}` : 'In questo periodo: nessun vestito')
+    : '');
+}
+
+async function pushSettings(patch){
+  settings = {...settings, ...patch};
+  paintSettings();
+  send({type:'settings', settings});
+  try{
+    const r = await fetch('/api/settings', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(patch)
+    });
+    settings = await r.json();
+    paintSettings();
+  }catch(e){ /* riproviamo al prossimo giro */ }
+}
+
+document.querySelectorAll('.sw[data-key]').forEach(sw => {
+  sw.onclick = () => {
+    const key = sw.dataset.key;
+    const patch = {};
+    setPath(patch, key, !get(settings, key));
+    pushSettings(patch);
+  };
+});
+document.querySelectorAll('input[data-key]').forEach(inp => {
+  inp.onchange = () => {
+    const n = Number(inp.value);
+    if (!Number.isFinite(n) || n < 1) return paintSettings();
+    const patch = {}; setPath(patch, inp.dataset.key, n);
+    pushSettings(patch);
+  };
+});
+document.querySelectorAll('.th').forEach(t => {
+  t.onclick = () => pushSettings({theme: t.dataset.theme});
+});
+$('#skinSel').onchange = e => pushSettings({skin: e.target.value});
+
+$('#gear').onclick = () => $('#panel').classList.toggle('open');
+$('#close').onclick = () => send({type:'quit'});
+$('#tall').onclick = () => send({type:'fullheight'});
+$('#dnd').onclick = () => {
+  const on = !$('#dnd').classList.contains('on');
+  pushSettings({dndUntil: on ? Math.floor(Date.now()/1000) + 3600 : 0});
+  say(on ? 'Non disturbare per un\'ora' : 'Torno a farmi sentire', 2400);
+};
+
+// ------------------------------------------------------------------ interazioni
+$('#list').addEventListener('click', async ev => {
+  const bub = ev.target.closest('.bub');
+  if (!bub) return;
+  const pid = Number(bub.dataset.pid);
+
+  // ✕ chiude la sessione, ma solo al secondo click
+  const kill = ev.target.closest('.kill');
+  if (kill){
+    ev.stopPropagation();
+    if (!kill.classList.contains('armed')){
+      kill.classList.add('armed');
+      kill.textContent = 'sicura?';
+      setTimeout(() => { kill.classList.remove('armed'); kill.textContent = '✕'; }, 3000);
+      return;
+    }
+    await post('/api/close', {pid});
+    say('Sessione chiusa', 2000);
+    return;
   }
 
-  // --- il fantasmino commenta quando cambia qualcosa di importante
+  bub.classList.add('flash');
+  setTimeout(() => bub.classList.remove('flash'), 500);
+  const j = await post('/api/focus', {pid});
+  if (j && !j.ok)
+    say(/not authoriz|1743|assistive/i.test(j.error || '')
+        ? 'Autorizza in Impostazioni › Privacy › Automazione'
+        : 'Terminale non trovato');
+});
+
+async function post(url, body){
+  try{
+    const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'},
+                               body: JSON.stringify(body)});
+    return await r.json();
+  }catch(e){ return null; }
+}
+
+// trascinamento: la barra e il fantasmino spostano la finestra
+for (const id of ['grip','stage']){
+  document.getElementById(id).addEventListener('mousedown', ev => {
+    if (ev.target.closest('.ico')) return;
+    send({type:'dragstart'});
+  });
+}
+$('#grab').addEventListener('mousedown', () => send({type:'resizestart'}));
+
+// ------------------------------------------------------------------------ ciclo
+let lastMood = null, lastWaiting = 0, lastForgotten = 0;
+
+function render(d){
+  if (d.settings){ settings = d.settings; paintSettings(); }
+
+  document.body.dataset.mood = d.mood;     // colore e alone li fa il CSS
+  renderSkin();
+  setAttr($('#mouth'), 'd', MOUTH[d.mood]);
+  const sleepy = d.mood === 'sleeping';
+  document.querySelectorAll('#big .eye').forEach(e => {
+    setAttr(e, 'ry', sleepy ? 1.4 : 5.4);
+    setAttr(e, 'cy', sleepy ? 44 : 42);
+  });
+  $('#dnd').classList.toggle('on', !!d.dnd);
+
+  const c = d.counts || {};
+  const want = ['working','waiting','replied','sleeping'].filter(k => c[k])
+    .map(k => `<span class="t-${k}"><i></i>${c[k]}</span>`).join('');
+  const tally = $('#tally');
+  if (tally.innerHTML !== want) tally.innerHTML = want;
+
+  renderList(d);
+  renderSwarm((d.groups || []).flatMap(g => g.sessions));
+
+  // commenti, solo quando cambia qualcosa di importante
   const w = c.waiting || 0;
   if (w > lastWaiting)
     say(w === 1 ? 'Una sessione aspetta te' : `${w} sessioni aspettano te`);
   else if (d.mood === 'crowded' && lastMood !== 'crowded')
     say(`Troppe sessioni su ${d.crowded[0]}`);
+  else if (d.forgotten > lastForgotten && d.forgotten > 2 && settings.personality)
+    say(`${d.forgotten} sessioni dimenticate da un pezzo`);
   else if (d.mood === 'sleeping' && lastMood && lastMood !== 'sleeping')
     say('Tutto tranquillo');
-  lastWaiting = w;
-  lastMood = d.mood;
+  lastWaiting = w; lastMood = d.mood; lastForgotten = d.forgotten || 0;
 }
-
-function esc(s){
-  return String(s == null ? '' : s).replace(/[&<>"]/g,
-    ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
-}
-
-// --- click su una bubble: porta in primo piano il suo terminale
-document.getElementById('list').addEventListener('click', async ev => {
-  const bub = ev.target.closest('.bub');
-  if (!bub) return;
-  bub.classList.add('flash');
-  setTimeout(() => bub.classList.remove('flash'), 500);
-  try{
-    const r = await fetch('/api/focus', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ pid: Number(bub.dataset.pid) })
-    });
-    const j = await r.json();
-    if (!j.ok) say(j.error && /not authoriz|1743|assistive/i.test(j.error)
-      ? 'Autorizza in Impostazioni › Privacy › Automazione'
-      : 'Terminale non trovato');
-  }catch(e){ say('Non riesco ad aprirlo'); }
-});
-
-// --- ponte verso il guscio nativo (assente se apri la UI nel browser)
-const native = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.app;
-const send = m => { if (native) native.postMessage(m); };
-
-// trascina la finestra afferrandola dalla barra o dal fantasmino
-for (const id of ['grip','ghost']){
-  document.getElementById(id).addEventListener('mousedown', ev => {
-    if (ev.target.closest('#close')) return;
-    send({type:'dragstart'});
-  });
-}
-
-document.getElementById('close').onclick = () => send({type:'quit'});
 
 async function tick(){
   try{

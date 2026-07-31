@@ -2,13 +2,13 @@
 # Hook Notification di Claude Code.
 # Claude lo esegue esattamente quando una sessione ha bisogno di te: richiesta di
 # permesso su un tool, oppure attesa di input prolungata. Lasciamo un file-flag
-# che il companion legge per accendere la bubble di giallo.
+# che Peekaboo legge per accendere la bubble di giallo.
 #
 # L'hook riceve su stdin un JSON con session_id.
 
 set -euo pipefail
 
-DIR="$HOME/.claude/companion-waiting"
+DIR="$HOME/.claude/peekaboo-waiting"
 mkdir -p "$DIR"
 
 payload=$(cat)

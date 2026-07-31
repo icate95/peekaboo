@@ -1,41 +1,155 @@
 #!/usr/bin/env python3
-"""Companion — server locale che legge lo stato delle sessioni Claude Code.
+"""Peekaboo — server locale che legge lo stato delle sessioni Claude Code.
 
 Espone su 127.0.0.1:
-  GET /              -> la UI (ui/index.html)
-  GET /api/sessions  -> stato di tutte le sessioni vive, raggruppate per progetto
+  GET  /                 la UI (ui/index.html)
+  GET  /api/sessions     stato di tutte le sessioni vive, raggruppate per progetto
+  GET  /api/settings     impostazioni correnti
+  POST /api/settings     salva le impostazioni (e applica l'avvio automatico)
+  POST /api/focus        porta in primo piano il terminale di una sessione
+  POST /api/close        chiude una sessione dimenticata
 """
 
 import http.server
 import json
 import os
 import re
+import signal
 import socketserver
 import subprocess
 import sys
 import time
 from pathlib import Path
 
+APP_NAME = "Peekaboo"
+BUNDLE_ID = "com.peekaboo.ghost"
+
 HOME = Path.home()
 CLAUDE_DIR = HOME / ".claude"
 SESSIONS_DIR = CLAUDE_DIR / "sessions"
 PROJECTS_DIR = CLAUDE_DIR / "projects"
-WAITING_DIR = CLAUDE_DIR / "companion-waiting"  # scritta dall'hook Notification
-UI_DIR = Path(__file__).parent / "ui"
+WAITING_DIR = CLAUDE_DIR / "peekaboo-waiting"   # scritta dall'hook Notification
 
-PORT = int(os.environ.get("COMPANION_PORT", "8787"))
+SUPPORT_DIR = HOME / "Library" / "Application Support" / APP_NAME
+SETTINGS_FILE = SUPPORT_DIR / "settings.json"
+AGENT_FILE = HOME / "Library" / "LaunchAgents" / f"{BUNDLE_ID}.plist"
+
+UI_DIR = Path(__file__).parent / "ui"
+PORT = int(os.environ.get("PEEKABOO_PORT", "8787"))
 
 # Ripiego usato solo finche' l'hook Notification non e' installato: un tool fermo
 # da cosi' tanto e' *probabilmente* un prompt di permesso. Alto di proposito,
 # perche' i comandi lunghi (build, test, deploy) non vanno scambiati per attese.
 PENDING_TOOL_WAIT_S = 120
-# Oltre questo tempo di inattivita' una sessione idle e' considerata "addormentata".
-SLEEP_AFTER_S = 45 * 60
-# Oltre questo numero di sessioni sveglie sullo stesso progetto si fa confusione.
-CROWD_LIMIT = 3
 
-_tail_cache = {}  # sessionId -> (mtime, size, parsed)
+DEFAULTS = {
+    "theme": "morbido",             # morbido | pixel | minimale
+    "skin": "auto",                 # auto (stagionale) | off | nome della skin
+    "swarm": True,                  # fantasmini piccoli attorno a quello grande
+    "personality": True,            # reazioni, capriole, commenti
+    "crowdLimit": 3,                # oltre queste sessioni sveglie sullo stesso progetto
+    "sleepAfterMinutes": 45,        # quando una sessione ferma "dorme"
+    "forgottenAfterHours": 24,      # quando diventa "dimenticata"
+    "notifications": {
+        "waiting": True,            # una sessione chiede il tuo input
+        "replied": False,           # una sessione ha finito di rispondere
+        "forgotten": True,          # ci sono sessioni ferme da giorni
+        "sound": True,
+    },
+    "dndUntil": 0,                  # timestamp di fine "non disturbare" (0 = off)
+    "autostart": False,
+    "alwaysOnTop": True,
+    "opacity": 1.0,
+}
 
+_tail_cache = {}   # sessionId -> (mtime, size, parsed)
+_settings = None
+
+
+# ---------------------------------------------------------------- impostazioni
+
+def deep_merge(base, over):
+    """Unisce le impostazioni salvate sui default, senza perdere chiavi nuove."""
+    out = dict(base)
+    for k, v in (over or {}).items():
+        if k in out and isinstance(out[k], dict) and isinstance(v, dict):
+            out[k] = deep_merge(out[k], v)
+        elif k in out:
+            out[k] = v
+    return out
+
+
+def load_settings():
+    global _settings
+    if _settings is None:
+        try:
+            saved = json.loads(SETTINGS_FILE.read_text())
+        except (OSError, ValueError):
+            saved = {}
+        _settings = deep_merge(DEFAULTS, saved)
+    return _settings
+
+
+def save_settings(patch):
+    global _settings
+    _settings = deep_merge(load_settings(), patch)
+    SUPPORT_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = SETTINGS_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(_settings, indent=2, ensure_ascii=False))
+    tmp.replace(SETTINGS_FILE)          # scrittura atomica: niente file mezzi scritti
+    apply_autostart(_settings["autostart"])
+    return _settings
+
+
+def dnd_active():
+    return load_settings().get("dndUntil", 0) > time.time()
+
+
+# ------------------------------------------------------------ avvio automatico
+
+def app_bundle_path():
+    """Il .app accanto a questo file, se e' stato costruito."""
+    p = Path(__file__).parent / f"{APP_NAME}.app"
+    return p if p.exists() else None
+
+
+def apply_autostart(enabled):
+    """Scrive o rimuove il LaunchAgent che avvia Peekaboo al login."""
+    try:
+        if not enabled:
+            if AGENT_FILE.exists():
+                subprocess.run(["launchctl", "unload", str(AGENT_FILE)],
+                               capture_output=True, timeout=8)
+                AGENT_FILE.unlink()
+            return True, ""
+
+        bundle = app_bundle_path()
+        target = ([str(bundle / "Contents" / "MacOS" / APP_NAME)] if bundle
+                  else ["/bin/bash", str(Path(__file__).parent / "run.sh")])
+
+        AGENT_FILE.parent.mkdir(parents=True, exist_ok=True)
+        args = "".join(f"    <string>{a}</string>\n" for a in target)
+        AGENT_FILE.write_text(
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
+            '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+            '<plist version="1.0">\n<dict>\n'
+            f'  <key>Label</key><string>{BUNDLE_ID}</string>\n'
+            f'  <key>ProgramArguments</key>\n  <array>\n{args}  </array>\n'
+            '  <key>RunAtLoad</key><true/>\n'
+            '  <key>KeepAlive</key><false/>\n'
+            '  <key>ProcessType</key><string>Interactive</string>\n'
+            '</dict>\n</plist>\n')
+        subprocess.run(["launchctl", "unload", str(AGENT_FILE)],
+                       capture_output=True, timeout=8)
+        subprocess.run(["launchctl", "load", str(AGENT_FILE)],
+                       capture_output=True, timeout=8)
+        return True, ""
+    except (OSError, subprocess.SubprocessError) as e:
+        return False, str(e)
+
+
+# -------------------------------------------------------------------- processi
 
 def pid_alive(pid):
     try:
@@ -46,7 +160,6 @@ def pid_alive(pid):
 
 
 def transcript_path(session_id):
-    """Trova il .jsonl del transcript per una sessione."""
     hits = list(PROJECTS_DIR.glob(f"*/{session_id}.jsonl"))
     return hits[0] if hits else None
 
@@ -66,7 +179,7 @@ def read_tail(path, nbytes=180_000):
         try:
             entries.append(json.loads(line))
         except ValueError:
-            continue  # riga tagliata a meta' dal seek
+            continue    # riga tagliata a meta' dal seek
     return entries
 
 
@@ -115,7 +228,6 @@ def analyze_transcript(session_id):
     path = transcript_path(session_id)
     if not path:
         return None, None, None
-
     try:
         st = path.stat()
     except OSError:
@@ -144,11 +256,9 @@ def analyze_transcript(session_id):
                     answered.add(b.get("tool_use_id"))
         elif e.get("type") == "assistant":
             blocks = e.get("message", {}).get("content", []) or []
-            tools = [
-                b for b in blocks
-                if isinstance(b, dict) and b.get("type") == "tool_use"
-                and b.get("id") not in answered
-            ]
+            tools = [b for b in blocks
+                     if isinstance(b, dict) and b.get("type") == "tool_use"
+                     and b.get("id") not in answered]
             if tools:
                 pending = tools[-1]
                 pending_age = age_of(e.get("timestamp"))
@@ -169,6 +279,8 @@ def age_of(iso_ts):
         return None
 
 
+# ------------------------------------------------------------------------ hook
+
 _hook_cache = [0.0, False]
 
 
@@ -179,21 +291,18 @@ def hook_installed():
     found = False
     for name in ("settings.json", "settings.local.json"):
         try:
-            raw = (CLAUDE_DIR / name).read_text()
+            if "peekaboo-notify" in (CLAUDE_DIR / name).read_text():
+                found = True
+                break
         except OSError:
             continue
-        if "companion-notify" in raw:
-            found = True
-            break
     _hook_cache[0], _hook_cache[1] = time.time(), found
     return found
 
 
 def waiting_flag(session_id):
-    """L'hook Notification tocca un file quando la sessione chiede il tuo input."""
-    f = WAITING_DIR / f"{session_id}.flag"
     try:
-        return time.time() - f.stat().st_mtime
+        return time.time() - (WAITING_DIR / f"{session_id}.flag").stat().st_mtime
     except OSError:
         return None
 
@@ -205,6 +314,8 @@ def clear_waiting_flag(session_id):
     except OSError:
         pass
 
+
+# ------------------------------------------------------------------- terminale
 
 def tty_of(pid):
     """Il tty su cui gira la sessione, es. /dev/ttys015."""
@@ -253,7 +364,6 @@ tell application "iTerm"
 end tell
 """
 
-
 TERM_APPS = [("Terminal.app", TERMINAL_APP), ("iTerm.app", ITERM_APP)]
 
 
@@ -286,11 +396,9 @@ def focus_terminal(pid):
     tty = tty_of(pid)
     if not tty:
         return False, "sessione senza terminale (background?)"
-
     script = host_app(pid)
     if not script:
         return False, "terminale non riconosciuto (supportati: Terminal, iTerm2)"
-
     try:
         r = subprocess.run(["osascript", "-e", script % tty],
                            capture_output=True, text=True, timeout=8)
@@ -302,6 +410,24 @@ def focus_terminal(pid):
         return False, (r.stderr or "").strip()[:160]
     return r.stdout.strip() == "ok", "tab non trovata"
 
+
+def is_session_pid(pid):
+    return (SESSIONS_DIR / f"{pid}.json").exists() and pid_alive(pid)
+
+
+def close_session(pid):
+    """Chiude una sessione con SIGTERM: Claude salva ed esce in modo pulito.
+    Il transcript resta, quindi si puo' sempre riprendere con --resume."""
+    if not is_session_pid(pid):
+        return False, "sessione non attiva"
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except OSError as e:
+        return False, str(e)
+    return True, ""
+
+
+# ------------------------------------------------------------------- raccolta
 
 def project_label(cwd):
     """Nome leggibile del progetto, con il worktree evidenziato se presente."""
@@ -316,7 +442,12 @@ def project_label(cwd):
 
 
 def collect():
-    HOOK_INSTALLED = hook_installed()
+    cfg = load_settings()
+    sleep_after = cfg["sleepAfterMinutes"] * 60
+    forgotten_after = cfg["forgottenAfterHours"] * 3600
+    crowd_limit = cfg["crowdLimit"]
+    with_hook = hook_installed()
+
     sessions = []
     for f in sorted(SESSIONS_DIR.glob("*.json")):
         try:
@@ -335,22 +466,21 @@ def collect():
         activity, pending_tool, pending_age = analyze_transcript(sid)
         wait_age = waiting_flag(sid)
         if raw_status == "busy" and wait_age is not None:
-            clear_waiting_flag(sid)  # ha ripreso a lavorare
+            clear_waiting_flag(sid)     # ha ripreso a lavorare
             wait_age = None
 
-        # --- stato finale -------------------------------------------------
         # Giallo certo: l'hook Notification ha segnalato una richiesta esplicita.
         # Giallo stimato: nessun hook installato e un tool e' fermo da troppo.
         guessed = False
         if wait_age is not None and wait_age < 6 * 3600 and raw_status != "busy":
             state = "waiting"
-        elif (not HOOK_INSTALLED and raw_status == "busy"
+        elif (not with_hook and raw_status == "busy"
               and pending_age is not None and pending_age > PENDING_TOOL_WAIT_S):
             state = "waiting"
             guessed = True
         elif raw_status == "busy":
             state = "working"
-        elif idle_for > SLEEP_AFTER_S:
+        elif idle_for > sleep_after:
             state = "sleeping"
         else:
             state = "replied"
@@ -371,11 +501,11 @@ def collect():
             "kind": d.get("kind", "interactive"),
             "state": state,
             "guessed": guessed,
+            "forgotten": state == "sleeping" and idle_for > forgotten_after,
             "activity": activity,
             "idleFor": round(idle_for),
         })
 
-    # --- raggruppamento per progetto -------------------------------------
     order = {"waiting": 0, "working": 1, "replied": 2, "sleeping": 3}
     groups = {}
     for s in sessions:
@@ -390,7 +520,7 @@ def collect():
             "cwd": items[0]["cwd"],
             "sessions": items,
             "awake": awake,
-            "crowded": awake > CROWD_LIMIT,
+            "crowded": awake > crowd_limit,
             "rank": min(order[s["state"]] for s in items),
         })
     out.sort(key=lambda g: (g["rank"], g["project"].lower()))
@@ -398,7 +528,7 @@ def collect():
     counts = {k: 0 for k in order}
     for s in sessions:
         counts[s["state"]] += 1
-
+    forgotten = [s for s in sessions if s["forgotten"]]
     crowded = [g["project"] for g in out if g["crowded"]]
 
     # Il fantasmino riflette la cosa piu' urgente in corso.
@@ -419,13 +549,19 @@ def collect():
         "mood": mood,
         "total": len(sessions),
         "crowded": crowded,
-        "crowdLimit": CROWD_LIMIT,
+        "crowdLimit": crowd_limit,
+        "forgotten": len(forgotten),
+        "hook": with_hook,
+        "dnd": dnd_active(),
+        "settings": cfg,
     }
 
 
+# --------------------------------------------------------------------- server
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *args):
-        pass  # niente rumore sul terminale
+        pass    # niente rumore sul terminale
 
     def _send(self, code, body, ctype):
         self.send_response(code)
@@ -435,41 +571,51 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _json(self, obj, code=200):
+        self._send(code, json.dumps(obj).encode(), "application/json")
+
+    def _body(self):
+        n = int(self.headers.get("Content-Length") or 0)
+        try:
+            return json.loads(self.rfile.read(n) or b"{}")
+        except ValueError:
+            return {}
+
     def do_GET(self):
         path = self.path.split("?")[0]
         if path == "/api/sessions":
             try:
-                body = json.dumps(collect()).encode()
-            except Exception as e:  # il companion non deve mai morire
-                body = json.dumps({"error": str(e), "groups": [], "counts": {},
-                                   "mood": "sleeping", "total": 0}).encode()
-            return self._send(200, body, "application/json")
-
+                return self._json(collect())
+            except Exception as e:      # il companion non deve mai morire
+                return self._json({"error": str(e), "groups": [], "counts": {},
+                                   "mood": "sleeping", "total": 0})
+        if path == "/api/settings":
+            return self._json(load_settings())
         if path in ("/", "/index.html"):
             f = UI_DIR / "index.html"
             if f.exists():
                 return self._send(200, f.read_bytes(), "text/html; charset=utf-8")
-
         self._send(404, b"not found", "text/plain")
 
     def do_POST(self):
-        if self.path.split("?")[0] != "/api/focus":
-            return self._send(404, b"not found", "text/plain")
+        path = self.path.split("?")[0]
 
-        n = int(self.headers.get("Content-Length") or 0)
-        try:
-            pid = int(json.loads(self.rfile.read(n) or b"{}").get("pid"))
-        except (ValueError, TypeError):
-            return self._send(400, b'{"ok":false}', "application/json")
+        if path == "/api/settings":
+            return self._json(save_settings(self._body()))
 
-        # Accetta solo pid che appartengono davvero a una sessione Claude viva.
-        if not (SESSIONS_DIR / f"{pid}.json").exists() or not pid_alive(pid):
-            body = json.dumps({"ok": False, "error": "sessione non attiva"}).encode()
-            return self._send(404, body, "application/json")
+        if path in ("/api/focus", "/api/close"):
+            try:
+                pid = int(self._body().get("pid"))
+            except (ValueError, TypeError):
+                return self._json({"ok": False, "error": "pid non valido"}, 400)
+            # Accetta solo pid che appartengono davvero a una sessione Claude viva.
+            if not is_session_pid(pid):
+                return self._json({"ok": False, "error": "sessione non attiva"}, 404)
+            ok, err = (focus_terminal(pid) if path == "/api/focus"
+                       else close_session(pid))
+            return self._json({"ok": ok, "error": None if ok else err})
 
-        ok, err = focus_terminal(pid)
-        body = json.dumps({"ok": ok, "error": None if ok else err}).encode()
-        self._send(200, body, "application/json")
+        self._send(404, b"not found", "text/plain")
 
 
 class Server(socketserver.ThreadingTCPServer):
@@ -479,9 +625,11 @@ class Server(socketserver.ThreadingTCPServer):
 
 if __name__ == "__main__":
     WAITING_DIR.mkdir(parents=True, exist_ok=True)
+    SUPPORT_DIR.mkdir(parents=True, exist_ok=True)
+    load_settings()
     try:
         with Server(("127.0.0.1", PORT), Handler) as httpd:
-            print(f"companion → http://127.0.0.1:{PORT}", flush=True)
+            print(f"{APP_NAME} → http://127.0.0.1:{PORT}", flush=True)
             httpd.serve_forever()
     except KeyboardInterrupt:
         sys.exit(0)
