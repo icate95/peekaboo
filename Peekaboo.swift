@@ -28,7 +28,7 @@ final class GhostWindow: NSWindow {
 }
 
 final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
-                 NSMenuDelegate, UNUserNotificationCenterDelegate {
+                 WKNavigationDelegate, NSMenuDelegate, UNUserNotificationCenterDelegate {
 
     var window: GhostWindow!
     var web: WKWebView!
@@ -55,6 +55,8 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
     private var lastLook = Date.distantPast
 
     private var micOn = false, camOn = false
+    private var serverProcess: Process?
+    private var loadTries = 0
 
     // MARK: avvio
 
@@ -72,6 +74,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
             }
         }
         NSApp.setActivationPolicy(.accessory)       // niente icona nel Dock
+        startServerIfNeeded()
         buildWindow()
         buildStatusItem()
         installGrabMonitors()
@@ -82,7 +85,11 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
 
         poll()
         Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.poll() }
-        Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in self?.checkDevices() }
+        installDeviceListeners()
+        checkDevices()
+        // Rete di sicurezza, nel caso un evento vada perso: gli ascoltatori
+        // sopra fanno il lavoro vero, questo controllo e' solo di riserva.
+        Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in self?.checkDevices() }
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil, queue: .main) { [weak self] _ in
@@ -92,11 +99,64 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
 
     // MARK: finestra e disposizione
 
+    /// Se il server non risponde, lo avvia da dentro il bundle. E' questo che
+    /// permette di aprire Peekaboo.app con un doppio click, senza run.sh.
+    private func startServerIfNeeded() {
+        if serverReachable() { return }
+        guard let res = Bundle.main.resourceURL else { return }
+        let script = res.appendingPathComponent("server.py")
+        guard FileManager.default.fileExists(atPath: script.path) else { return }
+
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        p.arguments = [script.path]
+        var env = ProcessInfo.processInfo.environment
+        env["PEEKABOO_PORT"] = PORT
+        p.environment = env
+        p.standardOutput = FileHandle.nullDevice
+        p.standardError = FileHandle.nullDevice
+        try? p.run()
+        serverProcess = p
+    }
+
+    private func serverReachable() -> Bool {
+        guard let url = URL(string: "\(BASE)/api/settings") else { return false }
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 0.6
+        var ok = false
+        let sem = DispatchSemaphore(value: 0)
+        URLSession.shared.dataTask(with: req) { d, _, _ in
+            ok = (d != nil); sem.signal()
+        }.resume()
+        _ = sem.wait(timeout: .now() + 1.0)
+        return ok
+    }
+
+    /// Se il server ci mette un attimo a partire, riprova invece di restare bianca.
+    func webView(_ w: WKWebView, didFail n: WKNavigation!, withError e: Error) { retryLoad() }
+    func webView(_ w: WKWebView, didFailProvisionalNavigation n: WKNavigation!, withError e: Error) {
+        retryLoad()
+    }
+
+    private func retryLoad() {
+        guard loadTries < 40 else { return }
+        loadTries += 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            guard let self else { return }
+            self.web.load(URLRequest(url: URL(string: BASE)!))
+        }
+    }
+
+    func applicationWillTerminate(_ n: Notification) {
+        serverProcess?.terminate()      // il server e' nostro: se ce ne andiamo, va spento
+    }
+
     private func buildWindow() {
         let cfg = WKWebViewConfiguration()
         cfg.userContentController.add(self, name: "app")
 
         web = WKWebView(frame: .zero, configuration: cfg)
+        web.navigationDelegate = self
         web.setValue(false, forKey: "drawsBackground")
         if #available(macOS 12.0, *) { web.underPageBackgroundColor = .clear }
         web.autoresizingMask = [.width, .height]
@@ -322,6 +382,72 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         guard m != micOn || c != camOn else { return }
         micOn = m; camOn = c
         web.evaluateJavaScript("window.setDevices&&setDevices(\(m),\(c))")
+    }
+
+    /// Ascolta gli eventi del sistema invece di interrogarlo a intervalli:
+    /// cosi' il microfono acceso si vede subito, non dopo due secondi.
+    private func installDeviceListeners() {
+        let queue = DispatchQueue.main
+        let react: () -> Void = { [weak self] in
+            // Il sistema segnala il cambio un attimo prima di aggiornare la
+            // proprieta': un respiro e poi leggiamo.
+            queue.asyncAfter(deadline: .now() + 0.05) { self?.checkDevices() }
+        }
+
+        // microfono: il dispositivo d'ingresso predefinito, e i cambi di predefinito
+        var addr = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyDeviceIsRunningSomewhere,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        for dev in inputDevices() {
+            AudioObjectAddPropertyListenerBlock(dev, &addr, queue) { _, _ in react() }
+        }
+        var defAddr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject),
+                                            &defAddr, queue) { _, _ in react() }
+
+        // telecamera
+        for dev in cameraDevices() {
+            var cAddr = CMIOObjectPropertyAddress(
+                mSelector: CMIOObjectPropertySelector(kCMIODevicePropertyDeviceIsRunningSomewhere),
+                mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeWildcard),
+                mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementWildcard))
+            CMIOObjectAddPropertyListenerBlock(dev, &cAddr, queue) { _, _ in react() }
+        }
+    }
+
+    private func inputDevices() -> [AudioDeviceID] {
+        var addr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(AudioObjectID(kAudioObjectSystemObject),
+                                             &addr, 0, nil, &size) == noErr, size > 0
+        else { return [] }
+        var ids = [AudioDeviceID](repeating: 0, count: Int(size) / MemoryLayout<AudioDeviceID>.size)
+        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject),
+                                         &addr, 0, nil, &size, &ids) == noErr else { return [] }
+        return ids
+    }
+
+    private func cameraDevices() -> [CMIOObjectID] {
+        var addr = CMIOObjectPropertyAddress(
+            mSelector: CMIOObjectPropertySelector(kCMIOHardwarePropertyDevices),
+            mScope: CMIOObjectPropertyScope(kCMIOObjectPropertyScopeGlobal),
+            mElement: CMIOObjectPropertyElement(kCMIOObjectPropertyElementMain))
+        var size: UInt32 = 0
+        guard CMIOObjectGetPropertyDataSize(CMIOObjectID(kCMIOObjectSystemObject),
+                                            &addr, 0, nil, &size) == noErr, size > 0
+        else { return [] }
+        var ids = [CMIOObjectID](repeating: 0, count: Int(size) / MemoryLayout<CMIOObjectID>.size)
+        var used: UInt32 = 0
+        guard CMIOObjectGetPropertyData(CMIOObjectID(kCMIOObjectSystemObject), &addr, 0, nil,
+                                        size, &used, &ids) == noErr else { return [] }
+        return ids
     }
 
     // MARK: messaggi dalla UI

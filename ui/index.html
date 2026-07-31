@@ -79,9 +79,11 @@
 
   .ico{
     cursor:pointer;color:var(--faint);
-    padding:2px 4px;border-radius:5px;line-height:1;font-size:12px;
+    padding:2px 5px;border-radius:5px;line-height:1;font-size:13px;
     transition:color .15s,background .15s;
   }
+  #gear{font-size:16px;padding:1px 5px}
+  #dnd{font-size:15px}
   .ico:hover{color:var(--ink);background:rgba(255,255,255,.09)}
   .ico.on{color:var(--waiting)}
   #close:hover{color:#ff6b6b}
@@ -103,6 +105,11 @@
     max-width:150px;
   }
   .hint{font-size:10px;color:var(--faint);padding:1px 0 3px;line-height:1.4}
+  .row input[type=range]{
+    flex:0 0 88px;accent-color:var(--working);height:14px;cursor:pointer;
+  }
+  .val{flex:0 0 34px;text-align:right;font-size:10.5px;color:var(--dim);
+       font-variant-numeric:tabular-nums}
   .row input[type=number]{
     width:52px;background:rgba(255,255,255,.07);border:1px solid var(--line);
     color:var(--ink);border-radius:6px;padding:2px 6px;font:inherit;font-size:11px;
@@ -249,12 +256,41 @@
 
   #body{
     fill:var(--ghost);stroke:var(--outline);stroke-width:2.4;
-    stroke-linejoin:round;
-    transition:fill .6s ease;
+    stroke-linejoin:round;stroke-linecap:round;
+    transition:fill .6s ease,d .55s ease;   /* il cambio d'abito e' morbido */
   }
+  /* i due tagli del "non disturbare" */
+  #body.reverse{fill:#15181f;stroke:#3a4150}
+  body[data-shape=reverse] .eye{fill:#f4f6fa}
+  body[data-shape=reverse] .blushc,body[data-shape=reverse] #mouth{opacity:0}
+  #body.invisible{fill:none;stroke-dasharray:5 4;opacity:.55}
+  body[data-shape=invisible] .face{opacity:.4}
+  /* ricami e balze */
+  #deco{fill:none;stroke:var(--outline);stroke-width:1.5;
+        stroke-linecap:round;opacity:.75;color:var(--outline)}
+  /* i tre in un cappotto: la faccia in alto, le altre due sono nel deco */
+  body[data-shape=trench] .blushc{opacity:0}
+  body[data-shape=trench] #eyes{transform:translateY(-8px)}
+  body[data-shape=trench] #mouth{opacity:0}
   #halo{fill:var(--aura);opacity:.20;transition:fill .6s ease}
   .blushc{fill:var(--blush);opacity:.55}
   .eye{transition:all .4s ease}
+  #mouth{transition:d .35s ease, fill .35s ease}
+
+  /* espressioni: occhi felici quando ha risposto, chiusi quando dorme */
+  .eyearc,.eyeline{
+    display:none;fill:none;stroke:var(--outline);
+    stroke-width:2.4;stroke-linecap:round;
+  }
+  body[data-mood=replied]  .eye,
+  body[data-mood=replied]  .shine{display:none}
+  body[data-mood=replied]  .eyearc{display:block}
+  body[data-mood=sleeping] .eye,
+  body[data-mood=sleeping] .shine{display:none}
+  body[data-mood=sleeping] .eyeline{display:block}
+  body[data-theme=pixel] .eyearc,body[data-theme=pixel] .eyeline{display:none!important}
+  /* guance piu' accese quando e' contento */
+  body[data-mood=replied] .blushc{opacity:.8}
   .blink{animation:blink 4.3s infinite}
   @keyframes blink{0%,95%,100%{transform:scaleY(1)}97%{transform:scaleY(.08)}}
   #mouth{transition:d .35s ease}
@@ -384,6 +420,9 @@
     <div class="sec">Comportamento</div>
     <div class="row"><label>Si smaterializza mentre lavori altrove</label>
       <div class="sw" data-key="autoFade"></div></div>
+    <div class="row"><label>Quanto resta visibile</label>
+      <input type="range" id="fadeRange" min="0" max="100" step="5">
+      <span class="val" id="fadeVal">32%</span></div>
     <div class="row"><label>I click passano attraverso il vuoto</label>
       <div class="sw" data-key="clickThrough"></div></div>
     <div class="row"><label>Gli occhi seguono il mouse</label>
@@ -460,9 +499,9 @@
       <!-- alone del colore dello stato, dietro al corpo -->
       <ellipse id="halo" cx="42" cy="46" rx="33" ry="34" filter="url(#soft)"/>
 
-      <!-- corpo: cupola tonda e fondo a quattro onde, come negli sticker -->
-      <path id="body" d="M14 50 A28 28 0 0 1 70 50 L70 63
-                         Q63 76 56 63 Q49 76 42 63 Q35 76 28 63 Q21 76 14 63 Z"/>
+      <!-- corpo: la sagoma cambia con lo stato d'animo (vedi WARDROBE) -->
+      <path id="body" d=""/>
+      <g id="deco"></g>
 
       <g class="face">
         <!-- #eyes muove lo sguardo, .blink fa le ciglia: due gruppi separati
@@ -475,6 +514,11 @@
             <rect class="eyepx" x="48" y="39" width="8" height="9"/>
             <circle class="shine" cx="33.8" cy="42" r="1.6" fill="#fff" opacity=".95"/>
             <circle class="shine" cx="53.8" cy="42" r="1.6" fill="#fff" opacity=".95"/>
+            <!-- occhi felici (^ ^) e occhi addormentati: il CSS sceglie -->
+            <path class="eyearc"  d="M27.6 46 q4.4 -6.4 8.8 0"/>
+            <path class="eyearc"  d="M47.6 46 q4.4 -6.4 8.8 0"/>
+            <path class="eyeline" d="M27.6 43.6 q4.4 3.6 8.8 0"/>
+            <path class="eyeline" d="M47.6 43.6 q4.4 3.6 8.8 0"/>
           </g>
         </g>
         <ellipse class="blushc" cx="22.5" cy="53" rx="4.6" ry="2.8"/>
@@ -507,17 +551,24 @@
 
   <div id="grab" title="Trascina per ridimensionare"></div>
 
+<script src="wardrobe.js"></script>
 <script>
 "use strict";
 
+// sagome e vestiti vivono in wardrobe.js, condiviso con la galleria
+const {WARDROBE, pickShape, SKINS, skinForDate, flowerCrown} = window.Wardrobe;
+
 const COLOR = {working:'var(--working)',waiting:'var(--waiting)',replied:'var(--replied)',
                sleeping:'var(--sleeping)',crowded:'var(--crowded)'};
+/* Bocche: la "ω" gattina degli sticker, non un buco tondo.
+   `fill` distingue le bocche aperte (sorriso pieno) da quelle a tratto. */
 const MOUTH = {
-  working:'M37 53 Q42 55.5 47 53',
-  waiting:'M38.5 54 A3.5 3.5 0 1 1 45.5 54 A3.5 3.5 0 1 1 38.5 54',
-  replied:'M36 52 Q42 58 48 52',
-  sleeping:'M39 54 Q42 54 45 54',
-  crowded:'M37 55 Q42 51.5 47 55'
+  working:  {d:'M38 53.5 q2 2.6 4 0 q2 2.6 4 0', fill:'none'},   // ω concentrata
+  waiting:  {d:'M39.6 53.4 q2.4 -1.6 4.8 0 q-0.6 3.4 -2.4 3.4 q-1.8 0 -2.4 -3.4 z',
+             fill:'var(--outline)'},                              // bocchina aperta, piccola
+  replied:  {d:'M36.5 52.6 q5.5 7 11 0 z', fill:'var(--outline)'},// sorrisone felice
+  sleeping: {d:'M39.6 54.4 q2.4 1.4 4.8 0', fill:'none'},         // riga morbida
+  crowded:  {d:'M37.4 55.4 q2.3 -2.6 4.6 0 q2.3 2.6 4.6 0', fill:'none'}, // ondina preoccupata
 };
 const LABEL = {working:'al lavoro',waiting:'aspetta te',replied:'ha risposto',sleeping:'dorme'};
 
@@ -553,90 +604,7 @@ function paintMini(host, state){
   }
 }
 
-// ------------------------------------------------------------ skin stagionali
-/** Ogni skin e' un pezzo di SVG che si appoggia sopra al fantasmino. */
-const SKINS = {
-  santa: `
-    <path d="M27 28 C28 12 40 6 52 9 C58 10.5 59.5 15 55.5 18 L46 28 Z"
-          fill="#e0384a" stroke="var(--outline)" stroke-width="2" stroke-linejoin="round"/>
-    <rect x="22" y="25" width="40" height="8" rx="4"
-          fill="#fdfdfd" stroke="var(--outline)" stroke-width="2"/>
-    <circle cx="56" cy="15" r="5" fill="#fdfdfd" stroke="var(--outline)" stroke-width="2"/>`,
-  winter: `
-    <path d="M24 30 Q24 12 42 12 Q60 12 60 30 Z"
-          fill="#6fb7e8" stroke="var(--outline)" stroke-width="2" stroke-linejoin="round"/>
-    <circle cx="35" cy="20" r="1.7" fill="#fdfdfd"/><circle cx="47" cy="18" r="1.7" fill="#fdfdfd"/>
-    <circle cx="41" cy="25" r="1.7" fill="#fdfdfd"/>
-    <rect x="21" y="27" width="42" height="7" rx="3.5"
-          fill="#fdfdfd" stroke="var(--outline)" stroke-width="2"/>
-    <circle cx="42" cy="9" r="4.6" fill="#fdfdfd" stroke="var(--outline)" stroke-width="2"/>`,
-  hearts: `
-    <g class="floaty">
-      <path d="M62 16 c0-2.4 3-3.2 4.2-1.2 1.2-2 4.2-1.2 4.2 1.2 0 2.6-4.2 5.4-4.2 5.4S62 18.6 62 16z"
-            fill="#ff8fb0" stroke="var(--outline)" stroke-width="1.4"/>
-    </g>
-    <g class="floaty" style="animation-delay:1.1s">
-      <path d="M15 24 c0-1.8 2.3-2.4 3.2-.9 .9-1.5 3.2-.9 3.2.9 0 2-3.2 4.1-3.2 4.1S15 26 15 24z"
-            fill="#ffb3c8" stroke="var(--outline)" stroke-width="1.2"/>
-    </g>`,
-  flowers: `
-    <g id="crown"></g>`,
-  sunglasses: `
-    <rect x="22.5" y="38" width="18" height="11.5" rx="4.5"
-          fill="#1c2027" stroke="var(--outline)" stroke-width="1.6"/>
-    <rect x="43.5" y="38" width="18" height="11.5" rx="4.5"
-          fill="#1c2027" stroke="var(--outline)" stroke-width="1.6"/>
-    <path d="M40.5 42 h3" stroke="var(--outline)" stroke-width="2.2" stroke-linecap="round"/>
-    <path d="M26 41 l6 3" stroke="#ffffff" stroke-width="1.6" opacity=".5" stroke-linecap="round"/>
-    <g class="twinkle">
-      <path d="M66 20 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6 z" fill="#ffd75e"/>
-    </g>`,
-  witch: `
-    <path d="M44 2 L57 26 L31 26 Z" fill="#2c2742"
-          stroke="var(--outline)" stroke-width="2" stroke-linejoin="round"/>
-    <path d="M35 18 h16 l1.5 5 h-19 z" fill="#7d5cc6"/>
-    <ellipse cx="42" cy="27" rx="23" ry="5.5" fill="#2c2742"
-             stroke="var(--outline)" stroke-width="2"/>`,
-  bunny: `
-    <ellipse cx="33" cy="12" rx="4.4" ry="11" transform="rotate(-12 33 12)"
-             fill="var(--ghost)" stroke="var(--outline)" stroke-width="2"/>
-    <ellipse cx="51" cy="12" rx="4.4" ry="11" transform="rotate(12 51 12)"
-             fill="var(--ghost)" stroke="var(--outline)" stroke-width="2"/>
-    <ellipse cx="33" cy="13" rx="1.9" ry="6.5" transform="rotate(-12 33 13)" fill="#ffb3c8"/>
-    <ellipse cx="51" cy="13" rx="1.9" ry="6.5" transform="rotate(12 51 13)" fill="#ffb3c8"/>`,
-};
-
-/** Corona di fiori: generata, sarebbe illeggibile scritta a mano. */
-function flowerCrown(){
-  const petals = ['#ffb3c8','#ffd75e','#b8e3ff','#d9b8ff','#a8e6c0'];
-  let out = '';
-  for (let i = 0; i < 5; i++){
-    const x = 25 + i * 8.5, y = 27 - Math.abs(i - 2) * 1.6, c = petals[i];
-    for (let p = 0; p < 5; p++){
-      const a = (p / 5) * Math.PI * 2;
-      out += `<circle cx="${(x + Math.cos(a) * 2.9).toFixed(1)}"
-                      cy="${(y + Math.sin(a) * 2.9).toFixed(1)}" r="2.1"
-                      fill="${c}" stroke="var(--outline)" stroke-width="1.1"/>`;
-    }
-    out += `<circle cx="${x}" cy="${y}" r="1.5" fill="#fff3c4" stroke="var(--outline)" stroke-width="1"/>`;
-  }
-  return out;
-}
-
-/** Calendario delle skin: mese e giorno decidono il vestito. */
-function skinForDate(d){
-  const m = d.getMonth() + 1, day = d.getDate();
-  if (m === 12) return 'santa';
-  if (m === 1 || (m === 2 && day < 10)) return 'winter';
-  if (m === 2 && day >= 10 && day <= 18) return 'hearts';
-  if (m === 3 && day >= 25) return 'bunny';
-  if (m === 4 && day <= 10) return 'bunny';
-  if (m === 4 || m === 5) return 'flowers';
-  if (m >= 6 && m <= 8) return 'sunglasses';
-  if ((m === 10 && day >= 21) || (m === 11 && day <= 2)) return 'witch';
-  return '';
-}
-
+// ------------------------------------------------------------ skin e sagome
 let shownSkin = null;
 function renderSkin(){
   const choice = settings.skin ?? 'auto';
@@ -646,9 +614,21 @@ function renderSkin(){
   if (want === shownSkin) return;
   shownSkin = want;
   const g = $('#skin');
-  g.innerHTML = SKINS[want] || '';
+  g.innerHTML = SKINS[want]?.svg || '';
   const crown = g.querySelector('#crown');
   if (crown) crown.innerHTML = flowerCrown();
+}
+
+/** Indossa una sagoma del guardaroba. */
+let wornShape = null;
+function wear(name){
+  if (name === wornShape) return;
+  wornShape = name;
+  const s = WARDROBE[name] || WARDROBE.regular;
+  setAttr($('#body'), 'd', s.d);
+  setAttr($('#body'), 'class', s.cls || '');
+  $('#deco').innerHTML = s.deco || '';
+  document.body.dataset.shape = name;
 }
 
 function esc(s){
@@ -935,12 +915,14 @@ function paintSettings(){
   pick('#screenSel', settings.screen ?? -1);
   if (!(settings.eyesFollow ?? true)) $('#eyes')?.removeAttribute('transform');
 
-  const SKIN_IT = {santa:'cappello di Babbo Natale', winter:'berretto invernale',
-    hearts:'cuoricini', bunny:'orecchie da coniglio', flowers:'corona di fiori',
-    sunglasses:'occhiali da sole', witch:'cappello da strega'};
+  const pct = Math.round((settings.fadeOpacity ?? .32) * 100);
+  const fr = $('#fadeRange');
+  if (fr && document.activeElement !== fr && fr.value !== String(pct)) fr.value = pct;
+  setText($('#fadeVal'), pct + '%');
+
   const auto = skinForDate(new Date());
   setText($('#skinHint'), (settings.skin ?? 'auto') === 'auto'
-    ? (auto ? `In questo periodo: ${SKIN_IT[auto]}` : 'In questo periodo: nessun vestito')
+    ? (auto ? `In questo periodo: ${SKINS[auto].label}` : 'In questo periodo: nessun vestito')
     : '');
 }
 
@@ -978,6 +960,9 @@ document.querySelectorAll('.th').forEach(t => {
   t.onclick = () => pushSettings({theme: t.dataset.theme});
 });
 $('#skinSel').onchange   = e => pushSettings({skin: e.target.value});
+// il cursore scrive di continuo: aggiorna subito la scritta, salva a fine gesto
+$('#fadeRange').oninput  = e => setText($('#fadeVal'), e.target.value + '%');
+$('#fadeRange').onchange = e => pushSettings({fadeOpacity: Number(e.target.value) / 100});
 $('#screenSel').onchange = e => pushSettings({screen: Number(e.target.value)});
 $('#layoutSel').onchange = e => pushSettings({layout: e.target.value});
 $('#sideSel').onchange   = e => pushSettings({side: e.target.value});
@@ -1065,14 +1050,12 @@ let lastMood = null, lastWaiting = 0, lastForgotten = 0;
 function render(d){
   if (d.settings){ settings = d.settings; paintSettings(); }
 
-  document.body.dataset.mood = d.mood;     // colore e alone li fa il CSS
+  document.body.dataset.mood = d.mood;     // colore, alone e occhi li fa il CSS
+  wear(pickShape(d, {height: window.innerHeight, dndLook: settings.dndLook}));
   renderSkin();
-  setAttr($('#mouth'), 'd', MOUTH[d.mood]);
-  const sleepy = d.mood === 'sleeping';
-  document.querySelectorAll('#big .eye').forEach(e => {
-    setAttr(e, 'ry', sleepy ? 1.4 : 5.4);
-    setAttr(e, 'cy', sleepy ? 44 : 42);
-  });
+  const m = MOUTH[d.mood] || MOUTH.sleeping;
+  setAttr($('#mouth'), 'd', m.d);
+  setAttr($('#mouth'), 'fill', m.fill);
   $('#dnd').classList.toggle('on', !!d.dnd);
 
   const c = d.counts || {};

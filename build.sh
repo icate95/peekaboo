@@ -17,6 +17,11 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 echo "compilo…"
 swiftc -O Peekaboo.swift -o "$APP/Contents/MacOS/Peekaboo"
 
+# Il server e la UI vanno dentro il bundle: cosi' Peekaboo.app si avvia da sola
+# con un doppio click, senza bisogno di run.sh, e si puo' spostare in Applicazioni.
+cp server.py "$APP/Contents/Resources/"
+cp -R ui "$APP/Contents/Resources/"
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

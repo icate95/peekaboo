@@ -600,10 +600,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                                    "mood": "sleeping", "total": 0})
         if path == "/api/settings":
             return self._json(load_settings())
-        if path in ("/", "/index.html"):
-            f = UI_DIR / "index.html"
+        # File statici della UI. Solo nomi semplici dentro ui/: niente
+        # traversal, niente percorsi assoluti.
+        name = "index.html" if path == "/" else path.lstrip("/")
+        if re.fullmatch(r"[\w.-]+\.(html|js|css)", name):
+            f = UI_DIR / name
             if f.exists():
-                return self._send(200, f.read_bytes(), "text/html; charset=utf-8")
+                kind = {"html": "text/html", "js": "text/javascript",
+                        "css": "text/css"}[name.rsplit(".", 1)[1]]
+                return self._send(200, f.read_bytes(), f"{kind}; charset=utf-8")
         self._send(404, b"not found", "text/plain")
 
     def do_POST(self):

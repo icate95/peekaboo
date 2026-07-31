@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Peekaboo — guardaroba</title>
+<style>
+  :root{
+    --working:#3ddc97; --waiting:#ffb547; --replied:#5eb3ff;
+    --sleeping:#7d8590; --crowded:#ff6b8a;
+    --fill-working:#ddf8ea; --fill-waiting:#fff1d8; --fill-replied:#dcedff;
+    --fill-sleeping:#e7e9ee; --fill-crowded:#ffe1e9;
+    --outline:#22262e; --blush:#ffa3bb;
+    --ghost:var(--fill-replied); --aura:var(--replied);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#14161c;color:#e9edf4;
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    padding:32px 28px 60px;
+  }
+  h1{font-size:20px;font-weight:650;margin-bottom:4px}
+  .sub{color:#9aa3b2;font-size:13px;margin-bottom:8px;max-width:60ch}
+  h2{font-size:12px;letter-spacing:.7px;text-transform:uppercase;
+     color:#6f7785;margin:34px 0 14px;font-weight:700}
+
+  .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .cell{
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
+    border-radius:14px;padding:12px 10px 11px;text-align:center;
+  }
+  .cell svg{width:104px;height:104px;overflow:visible}
+  .nm{font-size:12.5px;font-weight:600;margin-top:6px}
+  .wh{font-size:10.5px;color:#8a93a2;margin-top:2px;line-height:1.35}
+  .key{font-size:10px;color:#5d6674;margin-top:5px;font-family:ui-monospace,monospace}
+
+  #body{fill:var(--ghost);stroke:var(--outline);stroke-width:2.4;
+        stroke-linejoin:round;stroke-linecap:round}
+  #body.reverse{fill:#15181f;stroke:#3a4150}
+  #body.invisible{fill:none;stroke-dasharray:5 4;opacity:.55}
+  .deco{fill:none;stroke:var(--outline);stroke-width:1.5;
+        stroke-linecap:round;opacity:.75;color:var(--outline)}
+  .blushc{fill:var(--blush);opacity:.55}
+  .halo{fill:var(--aura);opacity:.18}
+
+  .tint{display:flex;gap:8px;margin:10px 0 0;flex-wrap:wrap}
+  .tint button{
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+    color:#cfd6e2;border-radius:20px;padding:5px 13px;font:inherit;font-size:12px;
+    cursor:pointer;
+  }
+  .tint button.on{background:rgba(255,255,255,.16);color:#fff;border-color:#fff3}
+  .note{
+    margin-top:34px;padding:13px 15px;border-radius:11px;
+    background:rgba(94,179,255,.09);border:1px solid rgba(94,179,255,.25);
+    font-size:12.5px;color:#bcd8f5;line-height:1.6;max-width:75ch;
+  }
+  code{font-family:ui-monospace,monospace;background:#ffffff14;padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+  <h1>Il guardaroba di Peekaboo</h1>
+  <p class="sub">Tutti i tagli e i vestiti, uno accanto all'altro. Serve a scegliere:
+     dimmi quali funzionano e quali no, e li rifaccio. Questa pagina legge lo
+     stesso <code>wardrobe.js</code> del fantasmino vero, quindi quello che vedi
+     qui è esattamente quello che vedrai lì.</p>
+
+  <div class="tint" id="tint"></div>
+
+  <h2>Sagome — cambiano con lo stato d'animo</h2>
+  <div class="grid" id="shapes"></div>
+
+  <h2>Vestiti — cambiano con la stagione</h2>
+  <div class="grid" id="skins"></div>
+
+  <div class="note">
+    <b>Come darmi indicazioni utili.</b> Non serve che tu sappia disegnare: bastano
+    frasi come «la <i>gonfia</i> sembra un fiore, non un fantasma», «gli occhi sono
+    troppo piccoli», «il cappotto non si capisce», «l'orlo dovrebbe essere più
+    morbido». Ogni riquadro ha il suo nome tecnico in basso, così puoi indicarmelo
+    con precisione.
+  </div>
+
+<script src="wardrobe.js"></script>
+<script>
+"use strict";
+const {WARDROBE, SKINS, flowerCrown} = window.Wardrobe;
+
+/** La faccia, uguale a quella del fantasmino vero. */
+function face(){
+  return `
+    <g>
+      <ellipse cx="32" cy="44" rx="4.6" ry="5.8" fill="var(--outline)"/>
+      <ellipse cx="52" cy="44" rx="4.6" ry="5.8" fill="var(--outline)"/>
+      <circle cx="33.8" cy="42" r="1.6" fill="#fff" opacity=".95"/>
+      <circle cx="53.8" cy="42" r="1.6" fill="#fff" opacity=".95"/>
+      <ellipse class="blushc" cx="22.5" cy="53" rx="4.6" ry="2.8"/>
+      <ellipse class="blushc" cx="61.5" cy="53" rx="4.6" ry="2.8"/>
+      <path d="M38 53.5 q2 2.6 4 0 q2 2.6 4 0" stroke="var(--outline)"
+            stroke-width="1.9" fill="none" stroke-linecap="round"/>
+    </g>`;
+}
+
+function cell(svgInner, name, when, key){
+  return `<div class="cell">
+    <svg viewBox="0 0 84 84">${svgInner}</svg>
+    <div class="nm">${name}</div>
+    <div class="wh">${when}</div>
+    <div class="key">${key}</div>
+  </div>`;
+}
+
+document.getElementById('shapes').innerHTML = Object.entries(WARDROBE).map(([k, s]) =>
+  cell(`<ellipse class="halo" cx="42" cy="46" rx="33" ry="34"/>
+        <path id="body" class="${s.cls || ''}" d="${s.d}"/>
+        <g class="deco">${s.deco || ''}</g>
+        ${s.cls === 'reverse' ? '' : face()}`,
+       s.label, s.when, k)).join('');
+
+document.getElementById('skins').innerHTML = Object.entries(SKINS).map(([k, s]) => {
+  let svg = s.svg;
+  if (svg.includes('id="crown"')) svg = svg.replace('<g id="crown"></g>', flowerCrown());
+  return cell(`<path id="body" d="${WARDROBE.regular.d}"/>${face()}${svg}`,
+              s.label, s.when, k);
+}).join('');
+
+// prova i tagli con i colori dei vari stati
+const TINTS = [['replied','ha risposto'],['working','al lavoro'],
+               ['waiting','aspetta te'],['sleeping','dorme'],['crowded','troppe']];
+document.getElementById('tint').innerHTML =
+  TINTS.map(([k, t], i) => `<button data-k="${k}" class="${i === 0 ? 'on' : ''}">${t}</button>`).join('');
+document.getElementById('tint').onclick = ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  document.querySelectorAll('.tint button').forEach(x => x.classList.toggle('on', x === b));
+  document.documentElement.style.setProperty('--ghost', `var(--fill-${b.dataset.k})`);
+  document.documentElement.style.setProperty('--aura', `var(--${b.dataset.k})`);
+};
+</script>
+</body>
+</html>
