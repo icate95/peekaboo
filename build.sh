@@ -46,6 +46,16 @@ echo "   architectures: $(lipo -archs "$BIN")"
 cp server.py "$APP/Contents/Resources/"
 cp -R ui "$APP/Contents/Resources/"
 
+# The app icon is drawn, not stored: keeping a 1 MB .icns in the repository
+# would mean re-committing a binary every time the ghost changes.
+if [ ! -f AppIcon.icns ] || [ make-icon.swift -nt AppIcon.icns ]; then
+  echo "drawing the icon…"
+  rm -rf "$TMP/AppIcon.iconset"
+  swift make-icon.swift "$TMP/AppIcon.iconset" >/dev/null
+  iconutil -c icns "$TMP/AppIcon.iconset" -o AppIcon.icns
+fi
+cp AppIcon.icns "$APP/Contents/Resources/"
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -57,6 +67,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleExecutable</key><string>Peekaboo</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>LSMinimumSystemVersion</key><string>12.0</string>
   <!-- no Dock icon: it lives in the menu bar -->

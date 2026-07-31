@@ -170,7 +170,10 @@ separately. The ☾ in the bar turns on **Do Not Disturb** for an hour: no
 notifications, no chatter, and the ghost slips into its reverse outfit. It
 switches itself back off.
 
-**⌥⌘G** shows or hides the ghost from any app.
+**⌥⌘B** shows or hides the ghost from any app. Any fixed shortcut collides with
+something — ⌥⌘G, the obvious choice, belongs to Google Drive — so it is a
+setting: pick from ⌥⌘B, ⌥⌘K, ⌥⌘J, ⌥⌘0, ⌃⌥⌘G, ⌃⌥⌘P, or turn it off. Changes take
+effect immediately, no restart.
 
 ### Themes
 
@@ -214,7 +217,7 @@ opens the ghost. To move it out of the project folder afterwards, just drag
 | `./build.sh` | rebuild `Peekaboo.app` only |
 | `./install-hook.sh` | wire up the hook (see below) |
 | `./install-hook.sh --remove` | unwire it |
-| `⌥⌘G` | show or hide the ghost |
+| `⌥⌘B` | show or hide the ghost (configurable) |
 
 To quit: the ✕ on the bar, or 👻 › Quit in the menu bar. To start it again, open
 Peekaboo from Applications or Spotlight — there is no Dock icon, it lives in the
@@ -264,6 +267,7 @@ The panel opens with the ⚙. Everything is saved to
 | Thresholds | too many sessions, sleeps after, forgotten after |
 | Launch when the Mac starts | installs a LaunchAgent |
 | Always on top | otherwise it behaves like a normal window |
+| Show/hide shortcut | which global hotkey toggles the ghost, or none |
 
 ---
 
@@ -299,7 +303,8 @@ don't clutter the list.
 | `ui/index.html` | All the artwork: the ghost in CSS-animated SVG, the swarm, bubbles, settings panel. No external assets, no libraries. |
 | `ui/wardrobe.js` | Silhouettes and outfits, shared with the gallery. |
 | `ui/gallery.html` | Preview page for every cut and outfit. |
-| `build.sh` | Builds `Peekaboo.app` with its Info.plist and an ad-hoc signature. |
+| `build.sh` | Builds `Peekaboo.app` with its Info.plist, icon and an ad-hoc signature. |
+| `make-icon.swift` | Draws the app icon and emits an iconset; run by `build.sh`. |
 | `hooks/peekaboo-notify.sh` | The `Notification` hook. |
 
 The split has a practical point: **the artwork can be changed without
@@ -346,7 +351,7 @@ like a flower" is exactly the right level of detail.
 | Things it says | `ui/index.html`, `POKES` and `render()` |
 | Default settings | `server.py`, `DEFAULTS` |
 | Window geometry | `Peekaboo.swift`, `defaultFrame()` |
-| Keyboard shortcut | `Peekaboo.swift`, `installHotkey()` |
+| Keyboard shortcut choices | `Peekaboo.swift`, the `HOTKEYS` table |
 | Server port | `PEEKABOO_PORT` environment variable (default 8787) |
 
 ### Adding a terminal

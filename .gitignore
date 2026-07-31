@@ -12,3 +12,6 @@ companion-app
 # Python
 __pycache__/
 *.py[cod]
+
+# generated at build time by make-icon.swift
+AppIcon.icns

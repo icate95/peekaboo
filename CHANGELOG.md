@@ -29,7 +29,8 @@ First public release.
 - Flags sessions idle for over 24 hours and closes them on request, with a
   confirmation step; SIGTERM keeps the transcript resumable
 - Warns when more than three awake sessions share one project
-- Global hotkey **⌥⌘G** to show or hide
+- Global hotkey to show or hide, **⌥⌘B** by default and configurable, since any
+  fixed choice collides with something (⌥⌘G belongs to Google Drive)
 
 ### The ghost
 
@@ -60,6 +61,7 @@ First public release.
 - Self-contained `Peekaboo.app`: carries its own server and starts it, so it can
   live in Applications and open with a double click
 - Ships as a universal binary, running on both Apple Silicon and Intel
+- App icon drawn at build time, so no binary blob lives in the repository
 - Native notifications, switchable per event type
 - Do Not Disturb for an hour, with automatic expiry
 - Launch at login via LaunchAgent

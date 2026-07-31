@@ -57,6 +57,8 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
     private var micOn = false, camOn = false
     private var serverProcess: Process?
     private var loadTries = 0
+    private var hotkeyRef: EventHotKeyRef?
+    private var registeredHotkey: String?
 
     // MARK: startup
 
@@ -489,6 +491,10 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         settings = s
         window.level = (s["alwaysOnTop"] as? Bool ?? true) ? .floating : .normal
         updateAlpha()
+        // swap the shortcut the moment it changes, without a restart
+        if registeredHotkey != nil, registeredHotkey != currentHotkeyName {
+            registerHotkey(currentHotkeyName)
+        }
     }
 
     /// Saves a setting through the server, so it stays the single source of truth.
@@ -677,10 +683,17 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
             }
             menu.addItem(.separator())
         }
+        // The menu shows whichever shortcut is actually registered.
+        let name = currentHotkeyName
+        let letter = name.split(separator: "-").last.map(String.init)?.lowercased() ?? ""
         let toggle = NSMenuItem(title: window.isVisible ? "Hide the ghost"
                                                        : "Show the ghost",
-                                action: #selector(toggleWindow), keyEquivalent: "g")
-        toggle.keyEquivalentModifierMask = [.command, .option]
+                                action: #selector(toggleWindow),
+                                keyEquivalent: App.HOTKEYS[name] != nil ? letter : "")
+        if App.HOTKEYS[name] != nil {
+            toggle.keyEquivalentModifierMask = name.hasPrefix("ctrl-")
+                ? [.command, .option, .control] : [.command, .option]
+        }
         toggle.target = self
         menu.addItem(toggle)
         let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
@@ -705,8 +718,22 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
 
     @objc private func quit() { NSApp.terminate(nil) }
 
-    // MARK: global hotkey (⌥⌘G)
+    // MARK: global hotkey
+    //
+    // Configurable, because any fixed choice collides with something: ⌥⌘G,
+    // the original default, belongs to Google Drive on many Macs.
 
+    static let HOTKEYS: [String: (UInt32, UInt32)] = [
+        "opt-cmd-B":      (UInt32(kVK_ANSI_B), UInt32(cmdKey | optionKey)),
+        "opt-cmd-K":      (UInt32(kVK_ANSI_K), UInt32(cmdKey | optionKey)),
+        "opt-cmd-J":      (UInt32(kVK_ANSI_J), UInt32(cmdKey | optionKey)),
+        "opt-cmd-0":      (UInt32(kVK_ANSI_0), UInt32(cmdKey | optionKey)),
+        "ctrl-opt-cmd-G": (UInt32(kVK_ANSI_G), UInt32(cmdKey | optionKey | controlKey)),
+        "ctrl-opt-cmd-P": (UInt32(kVK_ANSI_P), UInt32(cmdKey | optionKey | controlKey)),
+    ]
+
+    /// Installs the handler once; the hotkey itself is registered separately
+    /// so it can be swapped without tearing the handler down.
     private func installHotkey() {
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
                                  eventKind: UInt32(kEventHotKeyPressed))
@@ -720,11 +747,24 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
             }
             return noErr
         }, 1, &spec, nil, nil)
+        registerHotkey(currentHotkeyName)
+    }
 
+    private var currentHotkeyName: String {
+        settings["hotkey"] as? String ?? "opt-cmd-B"
+    }
+
+    private func registerHotkey(_ name: String) {
+        if let ref = hotkeyRef {                 // out with the old
+            UnregisterEventHotKey(ref)
+            hotkeyRef = nil
+        }
+        registeredHotkey = name
+        guard let (key, mods) = App.HOTKEYS[name] else { return }   // "none" lands here
         var ref: EventHotKeyRef?
         let id = EventHotKeyID(signature: OSType(0x504B4142), id: HOTKEY_ID)   // 'PKAB'
-        RegisterEventHotKey(UInt32(kVK_ANSI_G), UInt32(cmdKey | optionKey),
-                            id, GetApplicationEventTarget(), 0, &ref)
+        RegisterEventHotKey(key, mods, id, GetApplicationEventTarget(), 0, &ref)
+        hotkeyRef = ref
     }
 }
 

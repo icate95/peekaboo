@@ -59,6 +59,9 @@ DEFAULTS = {
     "dndUntil": 0,                  # when do-not-disturb ends (0 = off)
     "autostart": False,
     "alwaysOnTop": True,
+    # Any fixed shortcut collides with something, so it is a setting.
+    # ⌥⌘G, the original default, belongs to Google Drive on many Macs.
+    "hotkey": "opt-cmd-B",          # see HOTKEYS in Peekaboo.swift, or "none"
 
     # --- window placement and behaviour ---
     "layout": "full",               # full | half | tophalf | free

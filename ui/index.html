@@ -495,6 +495,16 @@
       <div class="sw" data-key="autostart"></div></div>
     <div class="row"><label>Always on top</label>
       <div class="sw" data-key="alwaysOnTop"></div></div>
+    <div class="row"><label>Show/hide shortcut</label>
+      <select id="hotkeySel">
+        <option value="opt-cmd-B">⌥⌘B</option>
+        <option value="opt-cmd-K">⌥⌘K</option>
+        <option value="opt-cmd-J">⌥⌘J</option>
+        <option value="opt-cmd-0">⌥⌘0</option>
+        <option value="ctrl-opt-cmd-G">⌃⌥⌘G</option>
+        <option value="ctrl-opt-cmd-P">⌃⌥⌘P</option>
+        <option value="none">none</option>
+      </select></div>
   </div>
 
   <div id="list"></div>
@@ -949,6 +959,7 @@ function paintSettings(){
   pick('#layoutSel', settings.layout ?? 'full');
   pick('#sideSel',   settings.side   ?? 'right');
   pick('#screenSel', settings.screen ?? -1);
+  pick('#hotkeySel', settings.hotkey ?? 'opt-cmd-B');
   if (!(settings.eyesFollow ?? true)) $('#eyes')?.removeAttribute('transform');
 
   const pct = Math.round((settings.fadeOpacity ?? .32) * 100);
@@ -1002,6 +1013,7 @@ $('#fadeRange').onchange = e => pushSettings({fadeOpacity: Number(e.target.value
 $('#screenSel').onchange = e => pushSettings({screen: Number(e.target.value)});
 $('#layoutSel').onchange = e => pushSettings({layout: e.target.value});
 $('#sideSel').onchange   = e => pushSettings({side: e.target.value});
+$('#hotkeySel').onchange = e => pushSettings({hotkey: e.target.value});
 
 $('#gear').onclick = () => { $('#panel').classList.toggle('open'); sendHitRects(); };
 $('#close').onclick = () => send({type:'quit'});
