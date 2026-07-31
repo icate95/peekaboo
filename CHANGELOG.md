@@ -59,6 +59,7 @@ First public release.
 
 - Self-contained `Peekaboo.app`: carries its own server and starts it, so it can
   live in Applications and open with a double click
+- Ships as a universal binary, running on both Apple Silicon and Intel
 - Native notifications, switchable per event type
 - Do Not Disturb for an hour, with automatic expiry
 - Launch at login via LaunchAgent

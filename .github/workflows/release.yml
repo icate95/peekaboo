@@ -30,6 +30,9 @@ jobs:
       - name: Sanity-check the bundle
         run: |
           test -x Peekaboo.app/Contents/MacOS/Peekaboo
+          # the release must run on Intel Macs too, not just Apple Silicon
+          lipo -archs Peekaboo.app/Contents/MacOS/Peekaboo | grep -q x86_64
+          lipo -archs Peekaboo.app/Contents/MacOS/Peekaboo | grep -q arm64
           test -f Peekaboo.app/Contents/Resources/server.py
           test -f Peekaboo.app/Contents/Resources/ui/index.html
           test -f Peekaboo.app/Contents/Resources/ui/wardrobe.js

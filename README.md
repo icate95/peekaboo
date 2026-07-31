@@ -191,7 +191,8 @@ Command Line Tools, `xcode-select --install`).
 3. Right-click it → **Open** (needed once, because the app is ad-hoc signed
    rather than notarised)
 
-The app is self-contained: it carries its own server and starts it on its own.
+The app is self-contained — it carries its own server and starts it — and ships
+as a universal binary, so it runs on both Apple Silicon and Intel Macs.
 
 ### From source
 

@@ -14,8 +14,32 @@ VERSION="1.0.0"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
+# A universal binary, so the app runs on Intel Macs as well as Apple Silicon.
+# If one of the two slices can't be built (an SDK missing on this machine),
+# fall back to a native-only build rather than failing outright.
 echo "compiling…"
-swiftc -O Peekaboo.swift -o "$APP/Contents/MacOS/Peekaboo"
+BIN="$APP/Contents/MacOS/Peekaboo"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+built=()
+for arch in arm64 x86_64; do
+  if swiftc -O -target "$arch-apple-macos12.0" Peekaboo.swift \
+       -o "$TMP/Peekaboo-$arch" 2>/dev/null; then
+    built+=("$TMP/Peekaboo-$arch")
+  else
+    echo "note: $arch slice unavailable, skipping"
+  fi
+done
+
+if [ "${#built[@]}" -ge 2 ]; then
+  lipo -create "${built[@]}" -output "$BIN"
+elif [ "${#built[@]}" -eq 1 ]; then
+  cp "${built[0]}" "$BIN"
+else
+  swiftc -O Peekaboo.swift -o "$BIN"      # last resort: whatever this Mac is
+fi
+echo "   architectures: $(lipo -archs "$BIN")"
 
 # The server and the UI go inside the bundle, so Peekaboo.app starts on its own
 # from a double click, with no run.sh, and can be moved into Applications.
