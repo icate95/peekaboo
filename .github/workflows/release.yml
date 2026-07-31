@@ -36,6 +36,7 @@ jobs:
           test -f Peekaboo.app/Contents/Resources/server.py
           test -f Peekaboo.app/Contents/Resources/ui/index.html
           test -f Peekaboo.app/Contents/Resources/ui/wardrobe.js
+          test -f Peekaboo.app/Contents/Resources/AppIcon.icns
           plutil -lint Peekaboo.app/Contents/Info.plist
 
       - name: Check the server imports and the UI parses
