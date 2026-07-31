@@ -1,309 +1,383 @@
+<div align="center">
+
 # 👻 Peekaboo
 
-Un fantasmino che vive sulla tua scrivania e ti dice, a colpo d'occhio, quante
-sessioni di [Claude Code](https://claude.com/claude-code) hai in esecuzione,
-di cosa si stanno occupando e quali stanno aspettando te.
+**A desk companion that shows you what your Claude Code sessions are doing.**
 
-Nasce da un problema concreto: quando hai dieci terminali aperti, non sai più
-quale sta lavorando, quale ha finito da mezz'ora e quale è fermo perché aspetta
-un tuo "sì". Peekaboo te lo dice senza che tu debba cercare.
+A little ghost lives on your desktop and tells you, at a glance, how many
+[Claude Code](https://claude.com/claude-code) sessions are running, what each of
+them is up to, and — most importantly — which ones are stuck waiting for *you*.
 
-Gira **tutto in locale**. Nessuna rete, nessun account, nessun dato che esce dal
-tuo Mac: legge solo i file di stato che Claude Code scrive già in `~/.claude`.
+[Install](#install) · [Features](#features) · [Settings](#settings) ·
+[How it works](#how-it-works) · [Contributing](#contributing)
+
+</div>
 
 ---
 
-## Cosa vedi
+## Why
 
-Una colonna senza bordi, sempre sopra le altre app, che di default occupa tutta
-l'altezza dello schermo. Dentro, le sessioni sono **raggruppate per progetto**,
-una bubble ciascuna, ognuna con il suo fantasmino piccolo del colore del proprio
-stato:
+Ten terminals open and no idea which is which. One session is running a build,
+another finished twenty minutes ago, and a third has been sitting on a
+permission prompt since you walked away from your desk. Finding out means
+cycling through every tab.
+
+Peekaboo answers that without you having to look for it.
+
+Everything runs **locally**. No network, no account, no data leaving your Mac:
+it only reads the state files Claude Code already writes into `~/.claude`.
+
+---
+
+## What you see
+
+A borderless column, floating above your other windows, taking up the full
+height of whichever display you choose. Inside, sessions are **grouped by
+project**, one bubble each, every bubble carrying a little ghost in the colour
+of its own state:
 
 ```
-╭─ PEEKABOO ───────────── ●2 ●1 ●14  ☾ ⚙ ⇕ ✕ ╮
-╰────────────────────────────────────────────╯
-╭─ donne di montagna ────────────────── 2/8 ╮
-│  👻 zoho orders       esegue: sync…    4s │
-│  👻 fix prodotti      ha risposto      1h │
-╰────────────────────────────────────────────╯
-╭─ huniverse-v2 ─────────────────────── 1/8 ╮
-│  👻 ai next step      aspetta il tuo ok 2m│
-╰────────────────────────────────────────────╯
-        👻   👻  👻   👻  👻      ← lo sciame
+╭─ PEEKABOO ──────────── ●2 ●1 ●14  ☾ ⚙ ✕ ╮
+╰──────────────────────────────────────────╯
+╭─ donne-di-montagna ───────────────── 2/8 ╮
+│  👻 zoho orders      running: sync…   4s │
+│  👻 fix products     replied           1h │
+╰──────────────────────────────────────────╯
+╭─ huniverse-v2 ────────────────────── 1/8 ╮
+│  👻 ai next step     waiting for your ok │
+╰──────────────────────────────────────────╯
+        👻   👻  👻   👻  👻     ← the swarm
               .-""""-.
              / ●    ● \
              |   \__/  |
               \~^~^~^~/
 ```
 
-Più un'icona **👻 nella barra in alto**, con lo stesso elenco in un menu a
-tendina e il numero di sessioni che ti stanno aspettando.
+Plus a **👻 icon in the menu bar**, with the same list in a dropdown and a count
+of the sessions waiting on you.
 
-### I quattro stati
+### The four states
 
-| | Stato | Significato |
+| | State | Meaning |
 |---|---|---|
-| 🟢 | **al lavoro** | sta elaborando o eseguendo un tool |
-| 🟡 | **aspetta te** | ti ha chiesto un permesso o un input e si è fermata |
-| 🔵 | **ha risposto** | ha finito e attende la tua prossima mossa |
-| ⚪️ | **dorme** | ferma da più di 45 minuti |
-
-Il fantasmino grande riflette la cosa più urgente in corso: cambia colore,
-espressione e velocità di fluttuazione, sfoggia un punto esclamativo quando
-qualcuno ti aspetta e si addormenta quando tutto tace.
-
-### Lo sciame
-
-Attorno al fantasmino grande fluttuano i fantasmini piccoli, **uno per
-sessione**, colorati per stato — e quelli che dormono dormono davvero, con gli
-occhi chiusi. Si disattiva dalle impostazioni.
-
-### Troppe sessioni sullo stesso progetto
-
-Oltre **3 sessioni sveglie** sullo stesso progetto, il box si accende di rosa e
-il fantasmino si intristisce. Non è un errore: è un promemoria che oltre quella
-soglia le sessioni tendono a pestarsi i piedi invece di aiutarti. La soglia si
-cambia dalle impostazioni.
-
-### Sessioni dimenticate
-
-Le sessioni ferme da più di 24 ore vengono marcate: passandoci sopra compare una
-✕ che le chiude (con conferma al secondo click). Claude riceve un SIGTERM, quindi
-esce in modo pulito e il transcript resta — la sessione si può sempre riprendere
-con `claude --resume`.
-
-### Click su una bubble
-
-Cliccando una bubble, il terminale che ospita quella sessione viene portato in
-primo piano, con la tab giusta già selezionata. Funziona con **Terminal.app** e
-**iTerm2**.
-
-Al primo click macOS chiede il permesso: *Impostazioni di sistema › Privacy e
-sicurezza › Automazione*. Va concesso, altrimenti il click non ha effetto.
+| 🟢 | **working** | thinking, or running a tool |
+| 🟡 | **waiting for you** | asked for a permission or an answer, and stopped |
+| 🔵 | **replied** | finished, waiting for your next move |
+| ⚪️ | **asleep** | idle for more than 45 minutes |
 
 ---
 
-## Dove sta e come si comporta
+## Features
 
-**Su quale schermo.** Se ne hai più di uno, lo scegli dalle impostazioni: il menu
-elenca gli schermi con nome e risoluzione. Peekaboo sta su **uno solo**.
+### The wardrobe
 
-**Disposizione.** Quattro preset, tutti su una colonna laterale (destra o
-sinistra, a scelta): colonna intera, metà alta, metà bassa, oppure *libera* —
-e in quel caso la trascini dove vuoi. Se la sposti a mano, passa automaticamente
-a "libera": non ti riporta dove dice lei.
+The ghost doesn't just change expression — it changes **silhouette**. Every
+circumstance gets a different cut:
 
-**Si smaterializza mentre lavori.** Quando l'app attiva è un'altra — cioè quando
-stai scrivendo da qualche altra parte — il fantasmino sbiadisce e ti lascia
-vedere quello che c'è sotto. Appena il mouse si avvicina, torna pieno.
-
-> Rilevare i *tasti* premuti richiederebbe il permesso Accessibilità, lo stesso
-> che serve a un keylogger. L'app attiva è un segnale equivalente e gratuito.
-
-**Non è un box.** La finestra resta un rettangolo — macOS non ne ha di altra
-forma — ma i click **passano attraverso** ovunque non ci sia niente disegnato:
-puoi cliccare le finestre sotto attraverso lo spazio vuoto attorno al fantasmino.
-La UI comunica al guscio nativo i rettangoli "solidi", che fa da filtro.
-
-**Gli occhi seguono il mouse**, ovunque sia sullo schermo.
-
-**Microfono e telecamera.** Se accendi il microfono, il fantasmino tira fuori un
-microfono e canticchia; se accendi la telecamera, finisce sotto i riflettori su
-un tappeto rosso. Il rilevamento non chiede nessun permesso: chiede al sistema se
-il dispositivo sta girando, senza mai aprire un flusso.
-
-**Click sul fantasmino.** Se c'è una sessione che ti aspetta, ti porta lì. Se non
-c'è, fa una capriola.
-
----
-
-## Vestiti e temi
-
-Peekaboo si cambia d'abito da solo secondo il calendario:
-
-| Periodo | Vestito |
+| Situation | Cut |
 |---|---|
-| dicembre | cappello di Babbo Natale |
-| gennaio → 9 febbraio | berretto invernale |
-| 10 → 18 febbraio | cuoricini |
-| fine marzo → inizio aprile | orecchie da coniglio |
-| aprile → maggio | corona di fiori |
-| giugno → agosto | occhiali da sole |
-| 21 ottobre → 2 novembre | cappello da strega |
+| working | slim fit |
+| replied | relaxed fit |
+| getting bored | puffy |
+| bored for a while | ra-ra |
+| the window is tall | maxi (with an elastic stretch on the way in) |
+| do not disturb | reverse, or invisible |
+| **too many sessions on one project** | **three in a trench coat** |
 
-Dalle impostazioni si può bloccare un vestito fisso o toglierlo del tutto.
+Open `http://127.0.0.1:8787/gallery.html` to see every cut and outfit side by
+side, tinted in each state's colours.
 
-Ci sono anche tre **temi**: `morbido` (lo stile kawaii predefinito), `pixel`
-(spigoli vivi e occhi quadrati) e `minimale` (solo la sagoma, niente faccia).
+### Seasonal outfits
+
+Peekaboo dresses itself according to the calendar:
+
+| Period | Outfit |
+|---|---|
+| December | Santa hat |
+| January → 9 February | winter beanie |
+| 10 → 18 February | little hearts |
+| late March → early April | bunny ears |
+| April → May | flower crown |
+| June → August | sunglasses |
+| 21 October → 2 November | witch hat |
+
+You can pin one outfit or turn them off entirely in the settings.
+
+### Too many sessions on one project
+
+Past **3 awake sessions** on the same project the box turns pink, the ghost
+looks glum, and it puts on the trench coat. It isn't an error — it's a reminder
+that beyond that point sessions tend to trip over each other instead of helping.
+The threshold is configurable.
+
+### Forgotten sessions
+
+Sessions idle for more than 24 hours get flagged. Hover one and a ✕ appears to
+close it (with a confirmation on the second click). Claude gets a SIGTERM, so it
+exits cleanly and the transcript survives — you can always pick it back up with
+`claude --resume`.
+
+### Click a bubble, get its terminal
+
+Clicking a bubble brings the terminal hosting that session to the front, with
+the right tab already selected. Works with **Terminal.app** and **iTerm2**.
+
+The first click makes macOS ask for permission under *System Settings › Privacy
+& Security › Automation*. Grant it, or the click does nothing.
+
+### Placement and behaviour
+
+**Which display.** With more than one screen, pick it in the settings — the menu
+lists them by name and resolution. Peekaboo lives on **one** of them.
+
+**Arrangement.** Four presets, all on a side column (left or right, your
+choice): full column, top half, bottom half, or *free* — drag it anywhere. Move
+it by hand and it switches to free automatically; it won't snap back.
+
+**It fades while you work.** When another app is frontmost — that is, when
+you're typing somewhere else — the ghost fades out and lets you see through it.
+Bring the mouse near and it returns to full. How faint it goes is a 0–100%
+slider.
+
+> Detecting *keystrokes* would need the Accessibility permission, the same one a
+> keylogger asks for. Which app is frontmost is an equivalent signal that costs
+> nothing.
+
+**It's not a box.** The window is still a rectangle — macOS has no other kind —
+but clicks **pass straight through** wherever nothing is drawn. You can click
+the windows underneath through the empty space around the ghost. The UI reports
+its "solid" rectangles to the native shell, which does the filtering.
+
+**The eyes follow your mouse**, wherever it is on screen.
+
+### Microphone and camera
+
+Switch on your microphone and the ghost pulls out a mic and hums along; switch
+on your camera and it ends up under the spotlights on a red carpet. Detection
+needs **no permission at all**: it asks the system whether the device is running
+somewhere, without ever opening a stream.
+
+### Reactions
+
+Click the ghost: if a session is waiting for you, it takes you there. If none
+is, it does a somersault and says something.
+
+### Notifications, quiet hours, hotkey
+
+Native macOS notifications when a session starts waiting, optionally when one
+replies, and a daily nudge about forgotten sessions — each switchable
+separately. The ☾ in the bar turns on **Do Not Disturb** for an hour: no
+notifications, no chatter, and the ghost slips into its reverse outfit. It
+switches itself back off.
+
+**⌥⌘G** shows or hides the ghost from any app.
+
+### Themes
+
+Three looks: `soft` (the default rounded style), `pixel` (hard edges, square
+eyes) and `minimal` (silhouette only, no face).
 
 ---
 
-## Installazione
+## Install
 
-Servono solo cose che il Mac ha già: Python 3 e Swift (via Xcode Command Line
-Tools, `xcode-select --install`).
+You need only things your Mac already has: Python 3 and Swift (via the Xcode
+Command Line Tools, `xcode-select --install`).
+
+### From a release
+
+1. Download `Peekaboo.app.zip` from the [latest release](../../releases/latest)
+2. Unzip it and drag **Peekaboo.app** into your **Applications** folder
+3. Right-click it → **Open** (needed once, because the app is ad-hoc signed
+   rather than notarised)
+
+The app is self-contained: it carries its own server and starts it on its own.
+
+### From source
 
 ```bash
-git clone <url-del-repo> peekaboo
+git clone https://github.com/icate95/peekaboo.git
 cd peekaboo
 ./run.sh
 ```
 
-`run.sh` costruisce `Peekaboo.app` la prima volta, avvia il server locale e apre
-il fantasmino. Per chiuderlo: la ✕ sulla barra, oppure *👻 › Esci* nella barra in
-alto.
+`run.sh` builds `Peekaboo.app` the first time, starts the local server, and
+opens the ghost. To move it out of the project folder afterwards, just drag
+`Peekaboo.app` into Applications.
 
-### Comandi
+### Commands
 
 | | |
 |---|---|
-| `./run.sh` | avvia tutto |
-| `./build.sh` | ricostruisce solo `Peekaboo.app` |
-| `./install-hook.sh` | collega l'hook (vedi sotto) |
-| `./install-hook.sh --remove` | scollega l'hook |
-| `⌥⌘G` | mostra o nasconde il fantasmino, da qualsiasi app |
+| `./run.sh` | build if needed, then start everything |
+| `./build.sh` | rebuild `Peekaboo.app` only |
+| `./install-hook.sh` | wire up the hook (see below) |
+| `./install-hook.sh --remove` | unwire it |
+| `⌥⌘G` | show or hide the ghost |
 
-### L'hook (consigliato)
+To quit: the ✕ on the bar, or 👻 › Quit in the menu bar. To start it again, open
+Peekaboo from Applications or Spotlight — there is no Dock icon, it lives in the
+menu bar.
 
-Senza hook, "aspetta te" è una **stima**: se un tool è fermo da oltre due minuti,
-Peekaboo assume che ci sia un prompt di permesso a schermo. Funziona, ma sbaglia
-sui comandi lunghi (build, test, deploy).
+### The hook (recommended)
 
-Claude Code però ha un hook `Notification` che scatta **esattamente** quando una
-sessione ha bisogno di te. Collegandolo, il giallo diventa un segnale certo:
+Without the hook, "waiting for you" is a **guess**: if a tool has been stuck for
+over two minutes, Peekaboo assumes there's a permission prompt on screen. That
+works, but it's wrong about long commands — builds, test suites, deploys.
+
+Claude Code has a `Notification` hook that fires **exactly** when a session
+needs you. Wire it up and the amber becomes a certainty:
 
 ```bash
 ./install-hook.sh
 ```
 
-Modifica `~/.claude/settings.json` aggiungendo una voce, dopo averne salvato una
-copia in `settings.json.backup-peekaboo`. Le sessioni già aperte prendono l'hook
-al prossimo riavvio.
+It adds one entry to `~/.claude/settings.json`, after saving a copy at
+`settings.json.backup-peekaboo`. Sessions already open pick it up when they next
+restart.
 
-Le bubble in stima si distinguono dalle certe (te lo dice il tooltip). Quando
-l'hook è installato, Peekaboo smette del tutto di tirare a indovinare.
+Guessed bubbles are distinguishable from certain ones — the tooltip says so.
+With the hook installed, Peekaboo stops guessing altogether.
 
 ---
 
-## Impostazioni
+## Settings
 
-Il pannello si apre con la ⚙. Tutto viene salvato in
+The panel opens with the ⚙. Everything is saved to
 `~/Library/Application Support/Peekaboo/settings.json`.
 
-| Voce | Cosa fa |
+| Setting | What it does |
 |---|---|
-| Schermo | su quale monitor vive, se ne hai più di uno |
-| Disposizione | colonna intera, metà alta, metà bassa, libera |
-| Lato e larghezza | destra o sinistra, e quanto è larga |
-| Si smaterializza | sbiadisce mentre lavori in un'altra app |
-| Click attraverso | i click passano dove non c'è niente disegnato |
-| Occhi seguono il mouse | accende o spegne lo sguardo |
-| Tema | morbido, pixel, minimale |
-| Vestito | automatico (stagionale), nessuno, o uno fisso |
-| Fantasmini attorno | accende o spegne lo sciame |
-| Reazioni e commenti | il fantasmino salta se lo clicchi e commenta la giornata |
-| Notifiche | una per tipo: aspetta te, ha risposto, dimenticate, suono |
-| Soglie | quante sessioni sono troppe, dopo quanto dorme, dopo quanto è dimenticata |
-| Avvio all'accensione | installa un LaunchAgent che lo lancia al login |
-| Sempre in primo piano | se toglierlo, si comporta come una finestra normale |
-
-La ☾ nella barra attiva il **Non disturbare** per un'ora: niente notifiche,
-niente commenti. Si spegne da sola.
+| Display | which monitor it lives on |
+| Arrangement | full column, top half, bottom half, free |
+| Side and width | left or right, and how wide |
+| Fades out | dims while you work in another app |
+| How visible it stays | 0–100% |
+| Clicks pass through | click-through wherever nothing is drawn |
+| Eyes follow the mouse | on or off |
+| Theme | soft, pixel, minimal |
+| Outfit | automatic (seasonal), none, or a fixed one |
+| Little ghosts around | the swarm |
+| Reactions and remarks | somersaults and comments |
+| Notifications | one switch each: waiting, replied, forgotten, sound |
+| Thresholds | too many sessions, sleeps after, forgotten after |
+| Launch when the Mac starts | installs a LaunchAgent |
+| Always on top | otherwise it behaves like a normal window |
 
 ---
 
-## Come fa a saperlo
+## How it works
 
-Claude Code tiene già tutto quello che serve in `~/.claude`, e Peekaboo si limita
-a leggerlo:
+Claude Code already keeps everything needed in `~/.claude`. Peekaboo only reads
+it.
 
-**`~/.claude/sessions/<pid>.json`** — una riga per sessione viva, con `pid`,
-`sessionId`, `cwd`, lo `status` (`busy` / `idle`), il momento dell'ultimo
-aggiornamento e il `name` che Claude si autogenera (*"fix prodotti"*,
-*"ai next step"*). Quel nome diventa il titolo della bubble.
+**`~/.claude/sessions/<pid>.json`** — one entry per live session, with `pid`,
+`sessionId`, `cwd`, its `status` (`busy` / `idle`), the last-updated timestamp,
+and the `name` Claude generates for itself (*"fix products"*, *"ai next step"*).
+That name becomes the bubble's title.
 
-**`~/.claude/projects/<progetto>/<sessionId>.jsonl`** — il transcript completo.
-Peekaboo ne legge solo la coda (~180 KB) e ricava cosa sta succedendo ora: se c'è
-un `tool_use` senza il `tool_result` corrispondente, la sessione sta usando quel
-tool, e la riga diventa *"esegue: …"*, *"scrive config.ts"*, *"cerca «pattern»"*.
-Altrimenti mostra l'ultima frase dell'assistente.
+**`~/.claude/projects/<project>/<sessionId>.jsonl`** — the full transcript.
+Peekaboo reads only the tail (~180 KB) and works out what's happening right now:
+if there's a `tool_use` with no matching `tool_result`, the session is running
+that tool, and the line becomes *"running: …"*, *"writing config.ts"*,
+*"searching «pattern»"*. Otherwise it shows the assistant's last sentence.
 
-**`~/.claude/peekaboo-waiting/<sessionId>.flag`** — scritto dall'hook. La presenza
-del file accende il giallo; il server lo cancella da solo appena la sessione
-riprende a lavorare.
+**`~/.claude/peekaboo-waiting/<sessionId>.flag`** — written by the hook. Its
+presence turns the bubble amber; the server deletes it as soon as the session
+gets back to work.
 
-Le sessioni il cui processo non esiste più vengono ignorate, così i file di stato
-rimasti indietro non sporcano l'elenco.
+Sessions whose process no longer exists are ignored, so leftover state files
+don't clutter the list.
 
----
+### Architecture
 
-## Architettura
-
-| File | Ruolo |
+| File | Role |
 |---|---|
-| `server.py` | Legge `~/.claude`, deduce gli stati, tiene le impostazioni, espone le API su `127.0.0.1`. Nessuna dipendenza fuori dalla libreria standard. |
-| `Peekaboo.swift` | Guscio nativo: finestra senza bordi e trasparente, icona nella barra, notifiche di sistema, scorciatoia globale. Dentro, una `WKWebView`. |
-| `ui/index.html` | Tutta la grafica: fantasmino in SVG animato con CSS, sciame, bubble, vestiti, pannello impostazioni. Nessun asset esterno, nessuna libreria. |
-| `build.sh` | Costruisce `Peekaboo.app` con Info.plist e firma ad-hoc. |
-| `hooks/peekaboo-notify.sh` | L'hook `Notification`: tocca un file quando una sessione ti chiama. |
+| `server.py` | Reads `~/.claude`, derives the states, owns the settings, serves the API on `127.0.0.1`. No dependencies outside the standard library. |
+| `Peekaboo.swift` | Native shell: borderless transparent window, menu bar item, notifications, global hotkey, device detection. Hosts a `WKWebView`. |
+| `ui/index.html` | All the artwork: the ghost in CSS-animated SVG, the swarm, bubbles, settings panel. No external assets, no libraries. |
+| `ui/wardrobe.js` | Silhouettes and outfits, shared with the gallery. |
+| `ui/gallery.html` | Preview page for every cut and outfit. |
+| `build.sh` | Builds `Peekaboo.app` with its Info.plist and an ad-hoc signature. |
+| `hooks/peekaboo-notify.sh` | The `Notification` hook. |
 
-La divisione serve a una cosa pratica: **la grafica si modifica senza
-ricompilare**. Cambia `ui/index.html`, chiudi e riapri la finestra, fatto. Swift
-si ricompila solo se tocchi `Peekaboo.swift`, e `run.sh` se ne accorge da solo.
+The split has a practical point: **the artwork can be changed without
+recompiling**. Edit `ui/index.html`, close and reopen the window, done. Swift is
+only rebuilt when `Peekaboo.swift` changes, and `run.sh` notices on its own.
 
-### Perché serve un vero `.app`
+### Why it needs a real `.app`
 
-Non è un vezzo. Senza bundle le notifiche di sistema non funzionano
-(`UNUserNotificationCenter` richiede un bundle identifier), l'avvio automatico è
-fragile, e il permesso Automazione viene attribuito al terminale invece che a
-Peekaboo — quindi verrebbe richiesto di nuovo a ogni ricompilazione.
+Without a bundle, system notifications don't work
+(`UNUserNotificationCenter` needs a bundle identifier), launch-at-login is
+fragile, and the Automation permission gets attributed to the terminal rather
+than to Peekaboo — so it would be requested again on every rebuild.
 
-### Sicurezza
+### Security
 
-Il server sta in ascolto **solo su `127.0.0.1`**, e gli endpoint che agiscono
-(`/api/focus`, `/api/close`) accettano soltanto pid che corrispondono a una
-sessione Claude viva. Non è un canale per eseguire comandi arbitrari.
+The server listens on **`127.0.0.1` only**, and the endpoints that act
+(`/api/focus`, `/api/close`) accept nothing but pids belonging to a live Claude
+session. It is not a channel for running arbitrary commands.
 
-### Perché non è un widget macOS
+### Why it isn't a macOS widget
 
-I widget WidgetKit si ridisegnano a snapshot, su una timeline decisa dal sistema,
-di solito ogni parecchi minuti: niente animazione, niente aggiornamento continuo.
-In più girano in sandbox, quindi leggere `~/.claude` richiede entitlement e app
-group. Una finestra flottante dà molto di più con molta meno impalcatura.
+WidgetKit widgets redraw as snapshots on a timeline the system decides, usually
+every several minutes: no animation, no continuous updates. They also run
+sandboxed, so reading `~/.claude` would need entitlements and an app group.
+A floating window gives far more for far less scaffolding.
 
 ---
 
-## Personalizzazione
+## Contributing
 
-| Cosa | Dove |
+The most useful contribution is **feedback on the drawings**. Open
+`http://127.0.0.1:8787/gallery.html`, look at the cuts, and open an issue saying
+which ones don't read. You don't need to be able to draw — "the puffy one looks
+like a flower" is exactly the right level of detail.
+
+### Where to change what
+
+| What | Where |
 |---|---|
-| Colori degli stati | `ui/index.html`, blocco `:root` |
-| Forma, occhi, bocca | `ui/index.html`, l'`<svg id="big">` e la mappa `MOUTH` |
-| Vestiti e calendario | `ui/index.html`, `SKINS` e `skinForDate()` |
-| Frasi che dice | `ui/index.html`, `POKES` e la funzione `render()` |
-| Valori predefiniti | `server.py`, `DEFAULTS` |
-| Dimensione e posizione iniziale | `Peekaboo.swift`, `defaultFrame()` |
-| Scorciatoia da tastiera | `Peekaboo.swift`, `installHotkey()` |
-| Porta del server | variabile `PEEKABOO_PORT` (default 8787) |
+| State colours | `ui/index.html`, the `:root` block |
+| Silhouettes and outfits | `ui/wardrobe.js` |
+| Outfit calendar | `ui/wardrobe.js`, `skinForDate()` |
+| Face and expressions | `ui/index.html`, the `<svg id="big">` and the `MOUTH` map |
+| Things it says | `ui/index.html`, `POKES` and `render()` |
+| Default settings | `server.py`, `DEFAULTS` |
+| Window geometry | `Peekaboo.swift`, `defaultFrame()` |
+| Keyboard shortcut | `Peekaboo.swift`, `installHotkey()` |
+| Server port | `PEEKABOO_PORT` environment variable (default 8787) |
+
+### Adding a terminal
+
+Terminal focusing lives in `server.py`: add an AppleScript to `TERM_APPS` that
+matches a tty and selects the corresponding tab. The hard part is that the
+terminal must expose its sessions' tty over AppleScript — Ghostty, WezTerm and
+Alacritty currently don't.
 
 ---
 
-## Limiti noti
+## Known limitations
 
-- **Solo macOS.** Il guscio è AppKit e il "porta in primo piano" è AppleScript.
-  Il server, però, è portabile: la UI funziona in qualsiasi browser su
+- **macOS only.** The shell is AppKit and the focusing is AppleScript. The
+  server itself is portable, though: the UI works in any browser at
   `http://127.0.0.1:8787`.
-- **Il click sul terminale copre Terminal.app e iTerm2.** Ghostty, WezTerm,
-  Alacritty e simili non espongono il tty via AppleScript, quindi lì la bubble
-  resta cliccabile ma non porta da nessuna parte.
-- Le sessioni **non interattive** (`claude -p`, task in background) compaiono
-  nell'elenco ma non hanno un terminale da aprire.
-- La firma è **ad-hoc**: va bene per uso locale, ma per distribuire l'app fuori
-  dal tuo Mac servirebbe una firma con Developer ID e la notarizzazione Apple.
+- **Terminal focusing covers Terminal.app and iTerm2.** Elsewhere the bubble
+  stays clickable but goes nowhere.
+- **Non-interactive sessions** (`claude -p`, background tasks) show up in the
+  list but have no terminal to open.
+- The signature is **ad-hoc**: fine for local use, but distributing the app
+  beyond your own Mac would need a Developer ID signature and Apple
+  notarisation.
 
 ---
 
-## Licenza
+## Credits
 
-MIT — vedi [LICENSE](LICENSE).
+The wardrobe idea — a ghost that changes silhouette rather than expression — was
+inspired by the "ghost fashion" genre of illustration. Every silhouette here is
+drawn from scratch in SVG; none is traced from anyone else's artwork.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Peekaboo — guardaroba</title>
+<title>Peekaboo — wardrobe</title>
 <style>
   :root{
     --working:#3ddc97; --waiting:#ffb547; --replied:#5eb3ff;
@@ -58,26 +58,26 @@
 </style>
 </head>
 <body>
-  <h1>Il guardaroba di Peekaboo</h1>
-  <p class="sub">Tutti i tagli e i vestiti, uno accanto all'altro. Serve a scegliere:
-     dimmi quali funzionano e quali no, e li rifaccio. Questa pagina legge lo
-     stesso <code>wardrobe.js</code> del fantasmino vero, quindi quello che vedi
-     qui è esattamente quello che vedrai lì.</p>
+  <h1>Peekaboo's wardrobe</h1>
+  <p class="sub">Every cut and every outfit, side by side. This page is for
+     choosing: tell me which ones work and which don't, and I'll redraw them.
+     It reads the very same <code>wardrobe.js</code> the real ghost uses, so
+     what you see here is exactly what you'll see there.</p>
 
   <div class="tint" id="tint"></div>
 
-  <h2>Sagome — cambiano con lo stato d'animo</h2>
+  <h2>Silhouettes — they follow the mood</h2>
   <div class="grid" id="shapes"></div>
 
-  <h2>Vestiti — cambiano con la stagione</h2>
+  <h2>Outfits — they follow the season</h2>
   <div class="grid" id="skins"></div>
 
   <div class="note">
-    <b>Come darmi indicazioni utili.</b> Non serve che tu sappia disegnare: bastano
-    frasi come «la <i>gonfia</i> sembra un fiore, non un fantasma», «gli occhi sono
-    troppo piccoli», «il cappotto non si capisce», «l'orlo dovrebbe essere più
-    morbido». Ogni riquadro ha il suo nome tecnico in basso, così puoi indicarmelo
-    con precisione.
+    <b>How to give useful feedback.</b> You don't need to be able to draw.
+    Sentences like “the <i>puffy</i> one looks like a flower, not a ghost”,
+    “the eyes are too small”, or “the trench coat doesn't read” are plenty.
+    Each tile shows its internal name at the bottom, so you can point at one
+    precisely.
   </div>
 
 <script src="wardrobe.js"></script>
@@ -85,7 +85,7 @@
 "use strict";
 const {WARDROBE, SKINS, flowerCrown} = window.Wardrobe;
 
-/** La faccia, uguale a quella del fantasmino vero. */
+/** The face, identical to the real ghost's. */
 function face(){
   return `
     <g>
@@ -123,9 +123,9 @@ document.getElementById('skins').innerHTML = Object.entries(SKINS).map(([k, s]) 
               s.label, s.when, k);
 }).join('');
 
-// prova i tagli con i colori dei vari stati
-const TINTS = [['replied','ha risposto'],['working','al lavoro'],
-               ['waiting','aspetta te'],['sleeping','dorme'],['crowded','troppe']];
+// try the cuts in each state's colours
+const TINTS = [['replied','replied'],['working','working'],
+               ['waiting','waiting for you'],['sleeping','asleep'],['crowded','too many']];
 document.getElementById('tint').innerHTML =
   TINTS.map(([k, t], i) => `<button data-k="${k}" class="${i === 0 ? 'on' : ''}">${t}</button>`).join('');
 document.getElementById('tint').onclick = ev => {

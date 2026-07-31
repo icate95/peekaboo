@@ -1,0 +1,65 @@
+name: Release
+
+# Builds Peekaboo.app on a real macOS runner and attaches it to the release,
+# so people can download a working app instead of compiling it themselves.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build and release (e.g. v1.0.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: swift --version && python3 --version
+
+      - name: Build Peekaboo.app
+        run: ./build.sh
+
+      - name: Sanity-check the bundle
+        run: |
+          test -x Peekaboo.app/Contents/MacOS/Peekaboo
+          test -f Peekaboo.app/Contents/Resources/server.py
+          test -f Peekaboo.app/Contents/Resources/ui/index.html
+          test -f Peekaboo.app/Contents/Resources/ui/wardrobe.js
+          plutil -lint Peekaboo.app/Contents/Info.plist
+
+      - name: Check the server imports and the UI parses
+        run: |
+          python3 -c "import ast,sys; ast.parse(open('server.py').read())"
+          node --check ui/wardrobe.js
+
+      # ditto preserves the bundle structure and permissions; plain zip does not.
+      - name: Package
+        run: ditto -c -k --sequesterRsrc --keepParent Peekaboo.app Peekaboo.app.zip
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: Peekaboo ${{ github.event.inputs.tag || github.ref_name }}
+          body: |
+            ## Install
+
+            1. Download `Peekaboo.app.zip` below
+            2. Unzip it and drag **Peekaboo.app** into **Applications**
+            3. Right-click it → **Open** (needed once: the app is ad-hoc signed,
+               not notarised)
+
+            The app carries its own server, so there is nothing else to install.
+            It has no Dock icon — look for 👻 in the menu bar.
+
+            See [CHANGELOG.md](CHANGELOG.md) for what's in this version.
+          files: Peekaboo.app.zip
+          generate_release_notes: true

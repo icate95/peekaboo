@@ -1,16 +1,17 @@
-// Guardaroba di Peekaboo — le sagome e i vestiti del fantasmino.
+// Peekaboo's wardrobe — the ghost's silhouettes and outfits.
 //
-// L'idea: non cambia solo faccia, cambia *taglio*. Ogni stato d'animo ha una
-// silhouette diversa. Disegni originali, nello spirito minimale dei poster
-// "ghost fashion" ma senza ricalcarne nessuno.
+// The idea: the ghost doesn't just change its face, it changes its *cut*.
+// Every mood gets a different silhouette. These are original drawings in the
+// spirit of minimal "ghost fashion" line art — none of them traced from
+// anyone else's work.
 //
-// Usato sia dal fantasmino vero (index.html) sia dalla galleria di anteprima
-// (gallery.html): un file solo, cosi' l'anteprima non mente mai.
+// Shared by the real ghost (index.html) and the preview gallery
+// (gallery.html), so the gallery can never drift out of sync.
 
 (function (root) {
   "use strict";
 
-  /** Cupola + orlo ondulato: la base da cui derivano quasi tutte le sagome. */
+  /** Dome plus a wavy hem: the base most silhouettes are derived from. */
   function ghostBody({top = 48, halfW = 28, hem = 64, waves = 4, dip = 12} = {}) {
     const L = 42 - halfW, R = 42 + halfW, step = (R - L) / waves;
     let d = `M${L} ${top} A${halfW} ${halfW} 0 0 1 ${R} ${top} L${R} ${hem}`;
@@ -19,7 +20,7 @@
     return d + " Z";
   }
 
-  /** Contorno a nuvoletta: tanti archi attorno a un centro. */
+  /** A cloud-like outline: many little arcs around a centre. */
   function scallop(cx, cy, r, bumps) {
     let d = "";
     for (let i = 0; i <= bumps; i++) {
@@ -33,33 +34,33 @@
   }
 
   const WARDROBE = {
-    regular:   {label: "normale", when: "tutti i giorni",
+    regular:   {label: "regular", when: "everyday",
                 d: ghostBody()},
 
-    slim:      {label: "affusolata", when: "sta lavorando",
+    slim:      {label: "slim fit", when: "working",
                 d: ghostBody({halfW: 21, top: 46, hem: 66, waves: 4, dip: 10})},
 
-    relaxed:   {label: "rilassata", when: "ha risposto",
+    relaxed:   {label: "relaxed fit", when: "just replied",
                 d: ghostBody({halfW: 31, top: 50, hem: 62, waves: 3, dip: 14})},
 
-    puffy:     {label: "gonfia", when: "si sta annoiando",
+    puffy:     {label: "puffy", when: "getting bored",
                 d: scallop(42, 48, 27, 11)},
 
-    rara:      {label: "a balze", when: "annoiata da un pezzo",
+    rara:      {label: "ra-ra", when: "bored for a while",
                 d: ghostBody({halfW: 27, top: 48, hem: 60, waves: 5, dip: 10}),
                 deco: `<path d="M17 56 q6 5 12 0 q6 5 12 0 q6 5 12 0 q6 5 12 0"/>
                        <path d="M17 64 q6 5 12 0 q6 5 12 0 q6 5 12 0 q6 5 12 0"/>`},
 
-    maxi:      {label: "lunga", when: "la finestra è alta",
+    maxi:      {label: "maxi", when: "the window is tall",
                 d: ghostBody({halfW: 20, top: 40, hem: 74, waves: 3, dip: 8})},
 
-    reverse:   {label: "al contrario", when: "non disturbare",
+    reverse:   {label: "reverse", when: "do not disturb",
                 d: ghostBody(), cls: "reverse"},
 
-    invisible: {label: "invisibile", when: "non disturbare, discreta",
+    invisible: {label: "invisible", when: "do not disturb, discreet",
                 d: ghostBody(), cls: "invisible"},
 
-    trench:    {label: "tre in un cappotto", when: "troppe sessioni sul progetto",
+    trench:    {label: "three in a trench coat", when: "too many sessions on one project",
                 d: "M20 34 A22 22 0 0 1 64 34 L64 72 q-11 8 -22 0 q-11 8 -22 0 Z",
                 deco: `<path d="M42 22 v50" stroke-dasharray="3 3"/>
                        <path d="M26 40 h32"/>
@@ -69,13 +70,13 @@
                        <circle cx="53" cy="64" r="2.4" fill="currentColor" stroke="none"/>`},
   };
 
-  /** Quale taglio indossare, viste le circostanze. */
+  /** Which cut to wear, given the circumstances. */
   function pickShape(d, opts) {
     opts = opts || {};
     if (d && d.dnd) return opts.dndLook === "invisible" ? "invisible" : "reverse";
     if (!d) return "regular";
     if (d.mood === "crowded") return "trench";
-    // se la finestra è molto alta, si allunga per riempirla
+    // a very tall window calls for a very long ghost
     if ((opts.height || 0) > 760 && d.mood !== "sleeping") return "maxi";
 
     switch (d.mood) {
@@ -87,11 +88,11 @@
     }
   }
 
-  // ---------------------------------------------------------------- vestiti
-  // Accessori nello stesso tratto: linea scura, campiture piatte, niente
-  // sfumature. Si appoggiano sopra alla sagoma.
+  // ---------------------------------------------------------------- outfits
+  // Accessories in the same line style: dark outline, flat fills, no
+  // gradients. They sit on top of whatever silhouette is being worn.
 
-  /** Corona di fiori: generata, sarebbe illeggibile scritta a mano. */
+  /** Flower crown — generated, because writing it out by hand is unreadable. */
   function flowerCrown() {
     const petals = ["#ffb3c8", "#ffd75e", "#b8e3ff", "#d9b8ff", "#a8e6c0"];
     let out = "";
@@ -110,14 +111,14 @@
   }
 
   const SKINS = {
-    santa: {label: "Babbo Natale", when: "dicembre", svg: `
+    santa: {label: "Santa hat", when: "December", svg: `
       <path d="M27 28 C28 12 40 6 52 9 C58 10.5 59.5 15 55.5 18 L46 28 Z"
             fill="#e0384a" stroke="var(--outline)" stroke-width="2" stroke-linejoin="round"/>
       <rect x="22" y="25" width="40" height="8" rx="4"
             fill="#fdfdfd" stroke="var(--outline)" stroke-width="2"/>
       <circle cx="56" cy="15" r="5" fill="#fdfdfd" stroke="var(--outline)" stroke-width="2"/>`},
 
-    winter: {label: "berretto", when: "gennaio → inizio febbraio", svg: `
+    winter: {label: "winter beanie", when: "January → early February", svg: `
       <path d="M24 30 Q24 12 42 12 Q60 12 60 30 Z"
             fill="#6fb7e8" stroke="var(--outline)" stroke-width="2" stroke-linejoin="round"/>
       <circle cx="35" cy="20" r="1.7" fill="#fdfdfd"/>
@@ -127,7 +128,7 @@
             fill="#fdfdfd" stroke="var(--outline)" stroke-width="2"/>
       <circle cx="42" cy="9" r="4.6" fill="#fdfdfd" stroke="var(--outline)" stroke-width="2"/>`},
 
-    hearts: {label: "cuoricini", when: "san Valentino", svg: `
+    hearts: {label: "little hearts", when: "Valentine's", svg: `
       <g class="floaty">
         <path d="M62 16 c0-2.4 3-3.2 4.2-1.2 1.2-2 4.2-1.2 4.2 1.2 0 2.6-4.2 5.4-4.2 5.4S62 18.6 62 16z"
               fill="#ff8fb0" stroke="var(--outline)" stroke-width="1.4"/>
@@ -137,7 +138,7 @@
               fill="#ffb3c8" stroke="var(--outline)" stroke-width="1.2"/>
       </g>`},
 
-    bunny: {label: "orecchie", when: "Pasqua", svg: `
+    bunny: {label: "bunny ears", when: "Easter", svg: `
       <ellipse cx="33" cy="12" rx="4.4" ry="11" transform="rotate(-12 33 12)"
                fill="var(--ghost)" stroke="var(--outline)" stroke-width="2"/>
       <ellipse cx="51" cy="12" rx="4.4" ry="11" transform="rotate(12 51 12)"
@@ -145,9 +146,9 @@
       <ellipse cx="33" cy="13" rx="1.9" ry="6.5" transform="rotate(-12 33 13)" fill="#ffb3c8"/>
       <ellipse cx="51" cy="13" rx="1.9" ry="6.5" transform="rotate(12 51 13)" fill="#ffb3c8"/>`},
 
-    flowers: {label: "corona di fiori", when: "aprile → maggio", svg: `<g id="crown"></g>`},
+    flowers: {label: "flower crown", when: "April → May", svg: `<g id="crown"></g>`},
 
-    sunglasses: {label: "occhiali da sole", when: "giugno → agosto", svg: `
+    sunglasses: {label: "sunglasses", when: "June → August", svg: `
       <rect x="22.5" y="38" width="18" height="11.5" rx="4.5"
             fill="#1c2027" stroke="var(--outline)" stroke-width="1.6"/>
       <rect x="43.5" y="38" width="18" height="11.5" rx="4.5"
@@ -158,7 +159,7 @@
         <path d="M66 20 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6 z" fill="#ffd75e"/>
       </g>`},
 
-    witch: {label: "cappello da strega", when: "Halloween", svg: `
+    witch: {label: "witch hat", when: "Halloween", svg: `
       <path d="M44 2 L57 26 L31 26 Z" fill="#2c2742"
             stroke="var(--outline)" stroke-width="2" stroke-linejoin="round"/>
       <path d="M35 18 h16 l1.5 5 h-19 z" fill="#7d5cc6"/>
@@ -166,7 +167,7 @@
                stroke="var(--outline)" stroke-width="2"/>`},
   };
 
-  /** Calendario dei vestiti: mese e giorno decidono l'abito. */
+  /** Outfit calendar: the month and day decide what to wear. */
   function skinForDate(d) {
     const m = d.getMonth() + 1, day = d.getDate();
     if (m === 12) return "santa";

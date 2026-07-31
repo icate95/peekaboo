@@ -1,6 +1,6 @@
 #!/bin/bash
-# Avvia Peekaboo: server dei dati + fantasmino sullo schermo.
-# Chiudendo il fantasmino (✕ o menu › Esci) si ferma anche il server.
+# Starts Peekaboo: the data server plus the ghost on screen.
+# Closing the ghost (✕, or the menu bar › Quit) stops the server too.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -8,8 +8,8 @@ export PEEKABOO_PORT="${PEEKABOO_PORT:-8787}"
 PIDFILE=".server.pid"
 APP="Peekaboo.app/Contents/MacOS/Peekaboo"
 
-# Ferma un Peekaboo precedente, se c'e' — compreso il vecchio binario
-# "companion-app", il nome che aveva prima di chiamarsi Peekaboo.
+# Stop a previous Peekaboo if one is around — including the old
+# "companion-app" binary, the name it had before it became Peekaboo.
 pkill -f 'Peekaboo.app/Contents/MacOS/Peekaboo' 2>/dev/null || true
 pkill -f 'companion-app' 2>/dev/null || true
 if [ -f "$PIDFILE" ]; then
@@ -18,7 +18,7 @@ if [ -f "$PIDFILE" ]; then
 fi
 sleep 0.4
 
-# Ricostruisce il bundle solo se il sorgente e' cambiato.
+# Rebuild the bundle only when the source has changed.
 if [ ! -x "$APP" ] || [ Peekaboo.swift -nt "$APP" ]; then
   ./build.sh
 fi
@@ -27,13 +27,13 @@ fi
 echo $! > "$PIDFILE"
 trap 'kill "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null || true; rm -f "$PIDFILE"' EXIT
 
-# Aspetta che il server risponda prima di mostrare il fantasmino.
+# Wait for the server to answer before showing the ghost.
 ok=0
 for _ in $(seq 1 40); do
   if curl -sf "http://127.0.0.1:$PEEKABOO_PORT/api/sessions" >/dev/null 2>&1; then ok=1; break; fi
   sleep 0.15
 done
-[ "$ok" = 1 ] || { echo "il server non risponde sulla porta $PEEKABOO_PORT"; exit 1; }
+[ "$ok" = 1 ] || { echo "the server is not answering on port $PEEKABOO_PORT"; exit 1; }
 
-echo "👻 Peekaboo attivo — porta $PEEKABOO_PORT"
+echo "👻 Peekaboo is up — port $PEEKABOO_PORT"
 "./$APP"

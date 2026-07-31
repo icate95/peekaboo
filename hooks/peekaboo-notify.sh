@@ -1,10 +1,11 @@
 #!/bin/bash
-# Hook Notification di Claude Code.
-# Claude lo esegue esattamente quando una sessione ha bisogno di te: richiesta di
-# permesso su un tool, oppure attesa di input prolungata. Lasciamo un file-flag
-# che Peekaboo legge per accendere la bubble di giallo.
+# Claude Code Notification hook.
 #
-# L'hook riceve su stdin un JSON con session_id.
+# Claude runs this exactly when a session needs you: a tool asking for
+# permission, or a long wait for input. We leave a flag file behind, which
+# Peekaboo reads to turn that session's bubble amber.
+#
+# The hook receives JSON on stdin, containing session_id.
 
 set -euo pipefail
 
@@ -17,7 +18,7 @@ sid=$(printf '%s' "$payload" | /usr/bin/python3 -c \
 
 [ -n "$sid" ] && touch "$DIR/$sid.flag"
 
-# Le bandierine vecchie non servono piu': tieni pulita la cartella.
+# Old flags are of no use: keep the folder tidy.
 find "$DIR" -name '*.flag' -mmin +360 -delete 2>/dev/null || true
 
 exit 0

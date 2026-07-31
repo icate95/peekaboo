@@ -1,9 +1,9 @@
 #!/bin/bash
-# Costruisce Peekaboo.app.
+# Builds Peekaboo.app.
 #
-# Il bundle non e' un vezzo: senza di esso le notifiche di sistema non
-# funzionano, l'avvio automatico e' fragile e il permesso Automazione viene
-# attribuito al terminale invece che a Peekaboo.
+# The bundle is not a flourish: without it system notifications don't work,
+# launch-at-login is fragile, and the Automation permission gets attributed to
+# the terminal instead of to Peekaboo.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -14,11 +14,11 @@ VERSION="1.0.0"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-echo "compilo…"
+echo "compiling…"
 swiftc -O Peekaboo.swift -o "$APP/Contents/MacOS/Peekaboo"
 
-# Il server e la UI vanno dentro il bundle: cosi' Peekaboo.app si avvia da sola
-# con un doppio click, senza bisogno di run.sh, e si puo' spostare in Applicazioni.
+# The server and the UI go inside the bundle, so Peekaboo.app starts on its own
+# from a double click, with no run.sh, and can be moved into Applications.
 cp server.py "$APP/Contents/Resources/"
 cp -R ui "$APP/Contents/Resources/"
 
@@ -35,19 +35,19 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>Peekaboo</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>LSMinimumSystemVersion</key><string>12.0</string>
-  <!-- niente icona nel Dock: vive nella barra in alto -->
+  <!-- no Dock icon: it lives in the menu bar -->
   <key>LSUIElement</key><true/>
   <key>NSHumanReadableCopyright</key><string>MIT</string>
-  <!-- spiega perche' chiede di controllare il terminale -->
+  <!-- explains why it asks to control the terminal -->
   <key>NSAppleEventsUsageDescription</key>
-  <string>Peekaboo porta in primo piano la finestra del terminale della sessione che scegli.</string>
+  <string>Peekaboo brings the terminal window of the session you pick to the front.</string>
 </dict>
 </plist>
 PLIST
 
-# Firma ad-hoc: basta per l'uso locale e rende stabile l'identita' del bundle,
-# cosi' i permessi concessi non vengono richiesti di nuovo a ogni ricompilazione.
+# Ad-hoc signature: enough for local use, and it keeps the bundle identity
+# stable so granted permissions aren't asked for again on every rebuild.
 codesign --force --deep --sign - "$APP" 2>/dev/null || \
-  echo "nota: firma ad-hoc non riuscita, l'app funziona lo stesso"
+  echo "note: ad-hoc signing failed, the app still works"
 
-echo "✓ $APP pronta"
+echo "✓ $APP ready"

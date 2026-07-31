@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <title>Peekaboo</title>
@@ -19,7 +19,7 @@
     --radius:13px;
     --font:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
 
-    /* corpo chiaro tinto dallo stato, come negli sticker di riferimento */
+    /* light body tinted by state, like the reference stickers */
     --fill-working:#ddf8ea;
     --fill-waiting:#fff1d8;
     --fill-replied:#dcedff;
@@ -29,15 +29,15 @@
     --blush:#ffa3bb;
   }
 
-  /* tema pixel: spigoli vivi, colori accesi, monospazio */
+  /* pixel theme: hard edges, brighter colours, monospace */
   body[data-theme=pixel]{
     --panel:rgba(16,18,26,.90);
     --radius:3px;
     --font:"SF Mono",Menlo,monospace;
     --working:#4ef58c; --waiting:#ffc632; --replied:#5ec8ff; --sleeping:#79808d;
   }
-  /* tema minimale: niente faccia, tutto piu' silenzioso */
-  body[data-theme=minimale]{
+  /* minimal theme: no face, everything quieter */
+  body[data-theme=minimal]{
     --panel:rgba(18,19,24,.72);
     --line:rgba(255,255,255,.07);
     --working:#8fd9b6; --waiting:#e2c08d; --replied:#9dc3e6; --sleeping:#8a8f98;
@@ -61,7 +61,7 @@
     backdrop-filter:blur(22px) saturate(150%);
   }
 
-  /* ------------------------------------------------ barra di trascinamento */
+  /* -------------------------------------------------------------- drag bar */
   #grip{
     flex:0 0 auto;
     display:flex;align-items:center;gap:7px;
@@ -88,7 +88,7 @@
   .ico.on{color:var(--waiting)}
   #close:hover{color:#ff6b6b}
 
-  /* ---------------------------------------------------------- impostazioni */
+  /* -------------------------------------------------------------- settings */
   #panel{
     flex:0 0 auto;padding:10px 11px;display:none;
     max-height:44vh;overflow-y:auto;
@@ -135,7 +135,7 @@
   .th:hover{background:rgba(255,255,255,.1)}
   .th.on{border-color:var(--working);color:var(--ink);background:rgba(61,220,151,.12)}
 
-  /* --------------------------------------------------------------- elenco */
+  /* ------------------------------------------------------------------ list */
   #list{
     flex:1 1 auto;min-height:0;
     overflow-y:auto;overflow-x:hidden;
@@ -172,7 +172,7 @@
     border-radius:8px;font-size:10.5px;color:#ffb3c4;line-height:1.35;
   }
 
-  /* --------------------------------------------------------------- bubble */
+  /* --------------------------------------------------------------- bubbles */
   .bubbles{display:flex;flex-direction:column;gap:5px}
   .bub{
     position:relative;display:flex;align-items:flex-start;gap:7px;
@@ -188,16 +188,16 @@
   .bub.flash{animation:flash .5s ease}
   @keyframes flash{0%,100%{background:rgba(255,255,255,.045)}40%{background:rgba(94,179,255,.28)}}
 
-  /* ------------------------------------------------- fantasmini piccoli */
+  /* ---------------------------------------------------------- little ghosts */
   .mini,.sw-g{--eye:#12141a}
-  body[data-theme=minimale] .mini,body[data-theme=minimale] .sw-g{--eye:transparent}
+  body[data-theme=minimal] .mini,body[data-theme=minimal] .sw-g{--eye:transparent}
   .mini svg,.sw-g svg{width:100%;height:100%;overflow:visible;display:block}
   .mb{transition:fill .45s ease,stroke .45s ease;fill:var(--fill-sleeping);
       stroke:var(--sleeping);stroke-width:1.5;stroke-linejoin:round}
   .mface ellipse{fill:var(--eye)}
   .mblush{fill:var(--blush)!important;opacity:.6}
   .msleep path{stroke:var(--eye);stroke-width:1.1;fill:none;stroke-linecap:round}
-  body[data-theme=minimale] .mblush{opacity:0}
+  body[data-theme=minimal] .mblush{opacity:0}
   .mface{opacity:1;transition:opacity .3s}
   .msleep{opacity:0;transition:opacity .3s}
   [data-st=sleeping] .mface{opacity:0}
@@ -228,7 +228,7 @@
   .kill:hover{background:rgba(255,107,138,.22);color:#ffb3c4}
   .kill.armed{opacity:1;background:rgba(255,107,138,.28);color:#fff}
 
-  /* ---------------------------------------------------------- fantasmino */
+  /* ------------------------------------------------------------- the ghost */
   #stage{flex:0 0 auto;position:relative;height:104px;display:flex;
          align-items:flex-end;justify-content:center}
   #big{overflow:visible;animation:float 3.6s ease-in-out infinite}
@@ -247,7 +247,7 @@
   #big.spin{animation:twirl .75s ease}
   @keyframes twirl{to{transform:rotate(360deg)}}
 
-  /* colore del corpo e alone: guidati dallo stato, senza toccare la JS */
+  /* body colour and halo: driven by state, no JavaScript involved */
   #big{--ghost:var(--fill-sleeping);--aura:var(--sleeping)}
   body[data-mood=working]  #big{--ghost:var(--fill-working); --aura:var(--working)}
   body[data-mood=waiting]  #big{--ghost:var(--fill-waiting); --aura:var(--waiting)}
@@ -257,21 +257,21 @@
   #body{
     fill:var(--ghost);stroke:var(--outline);stroke-width:2.4;
     stroke-linejoin:round;stroke-linecap:round;
-    transition:fill .6s ease,d .55s ease;   /* il cambio d'abito e' morbido */
+    transition:fill .6s ease,d .55s ease;   /* outfit changes ease in */
   }
-  /* i due tagli del "non disturbare" */
+  /* the two do-not-disturb cuts */
   #body.reverse{fill:#15181f;stroke:#3a4150}
   body[data-shape=reverse] .eye{fill:#f4f6fa}
   body[data-shape=reverse] .blushc,body[data-shape=reverse] #mouth{opacity:0}
   #body.invisible{fill:none;stroke-dasharray:5 4;opacity:.55}
   body[data-shape=invisible] .face{opacity:.4}
-  /* ricami e balze */
+  /* trims and ruffles */
   #deco{fill:none;stroke:var(--outline);stroke-width:1.5;
         stroke-linecap:round;opacity:.75;color:var(--outline)}
 
-  /* Slancio elastico quando cambia taglio: si allunga oltre il dovuto e
-     rimbalza indietro. L'origine e' in cima, cosi' la testa resta ferma
-     e a stirarsi e' il corpo — squash and stretch, come nei cartoni. */
+  /* Elastic overshoot when the cut changes: it stretches past its resting
+     size and springs back. The origin sits at the top, so the head stays
+     put and the body does the stretching — squash and stretch, cartoon style. */
   #shape{transform-box:view-box;transform-origin:42px 24px}
   #shape.stretch{animation:stretchIn .9s cubic-bezier(.22,.9,.3,1.2) both}
   @keyframes stretchIn{
@@ -281,14 +281,14 @@
     82% {transform:scaleY(1.04) scaleX(.98)}
     100%{transform:scaleY(1)    scaleX(1)}
   }
-  /* per gli altri cambi d'abito basta un guizzo appena accennato */
+  /* other outfit changes only get a small twitch */
   #shape.pop{animation:popIn .45s ease both}
   @keyframes popIn{
     0%  {transform:scaleY(1)    scaleX(1)}
     45% {transform:scaleY(1.07) scaleX(.96)}
     100%{transform:scaleY(1)    scaleX(1)}
   }
-  /* i tre in un cappotto: la faccia in alto, le altre due sono nel deco */
+  /* three in a trench coat: the face rides high, the other two live in the deco */
   body[data-shape=trench] .blushc{opacity:0}
   body[data-shape=trench] #eyes{transform:translateY(-8px)}
   body[data-shape=trench] #mouth{opacity:0}
@@ -297,7 +297,7 @@
   .eye{transition:all .4s ease}
   #mouth{transition:d .35s ease, fill .35s ease}
 
-  /* espressioni: occhi felici quando ha risposto, chiusi quando dorme */
+  /* expressions: happy eyes when it has replied, shut when asleep */
   .eyearc,.eyeline{
     display:none;fill:none;stroke:var(--outline);
     stroke-width:2.4;stroke-linecap:round;
@@ -309,25 +309,25 @@
   body[data-mood=sleeping] .shine{display:none}
   body[data-mood=sleeping] .eyeline{display:block}
   body[data-theme=pixel] .eyearc,body[data-theme=pixel] .eyeline{display:none!important}
-  /* guance piu' accese quando e' contento */
+  /* rosier cheeks when it's pleased */
   body[data-mood=replied] .blushc{opacity:.8}
   .blink{animation:blink 4.3s infinite}
   @keyframes blink{0%,95%,100%{transform:scaleY(1)}97%{transform:scaleY(.08)}}
   #mouth{transition:d .35s ease}
 
-  /* minimale: niente faccia ne' guance, contorno sottile */
-  body[data-theme=minimale] .face,
-  body[data-theme=minimale] #skin{opacity:0}
-  body[data-theme=minimale] #body{stroke-width:1.6;fill-opacity:.85}
-  body[data-theme=minimale] #halo{opacity:.10}
-  /* pixel: occhi quadrati al posto di quelli tondi */
+  /* minimal: no face, no cheeks, thin outline */
+  body[data-theme=minimal] .face,
+  body[data-theme=minimal] #skin{opacity:0}
+  body[data-theme=minimal] #body{stroke-width:1.6;fill-opacity:.85}
+  body[data-theme=minimal] #halo{opacity:.10}
+  /* pixel: square eyes instead of round ones */
   .eyepx{display:none;fill:var(--outline)}
   body[data-theme=pixel] .eye,body[data-theme=pixel] .shine{display:none}
   body[data-theme=pixel] .eyepx{display:block}
   body[data-theme=pixel] #body{stroke-width:2.8}
   body[data-theme=pixel] #halo{opacity:.13}
 
-  /* microfono acceso: canticchia. telecamera accesa: tappeto rosso */
+  /* mic on: it hums along. camera on: red carpet */
   #eyes{transition:transform .12s ease-out}
   .micprop{animation:micsway 1.8s ease-in-out infinite;transform-origin:62px 62px}
   @keyframes micsway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
@@ -342,7 +342,7 @@
   @keyframes spotsweep{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
   body[data-mic="1"] #big{animation-duration:1.4s}
 
-  /* accessori animati delle skin */
+  /* animated outfit accessories */
   .floaty{animation:floaty 3.2s ease-in-out infinite}
   @keyframes floaty{0%,100%{transform:translateY(0);opacity:.9}
                     50%{transform:translateY(-5px);opacity:1}}
@@ -368,7 +368,7 @@
   #swirl g{animation:spin 3.1s linear infinite;transform-origin:42px 8px}
   @keyframes spin{to{transform:rotate(360deg)}}
 
-  /* --------------------------------------------- sciame di fantasmini */
+  /* ------------------------------------------------------- the ghost swarm */
   #swarm{position:absolute;inset:0;pointer-events:none}
   .sw-g{
     position:absolute;width:15px;height:17px;
@@ -394,7 +394,7 @@
 
   #empty{text-align:center;color:var(--dim);font-size:11.5px;padding:22px 10px;line-height:1.6}
 
-  /* maniglia di ridimensionamento */
+  /* resize handle */
   #grab{
     position:fixed;right:2px;bottom:2px;width:16px;height:16px;
     cursor:nwse-resize;opacity:.3;transition:opacity .15s;z-index:5;
@@ -407,93 +407,93 @@
   }
 </style>
 </head>
-<body data-mood="sleeping" data-theme="morbido">
+<body data-mood="sleeping" data-theme="soft">
 
   <div id="grip" class="card">
     <span class="ttl">PEEKABOO</span>
     <div class="spacer"></div>
     <div id="tally"></div>
-    <span class="ico" id="dnd"  title="Non disturbare">☾</span>
-    <span class="ico" id="gear" title="Impostazioni">⚙</span>
-    <span class="ico" id="close" title="Chiudi">✕</span>
+    <span class="ico" id="dnd"  title="Do not disturb">☾</span>
+    <span class="ico" id="gear" title="Settings">⚙</span>
+    <span class="ico" id="close" title="Close">✕</span>
   </div>
 
   <div id="panel" class="card">
-    <div class="sec">Dove sta</div>
-    <div class="row"><label>Schermo</label>
-      <select id="screenSel"><option value="-1">principale</option></select></div>
-    <div class="row"><label>Disposizione</label>
+    <div class="sec">Placement</div>
+    <div class="row"><label>Display</label>
+      <select id="screenSel"><option value="-1">main</option></select></div>
+    <div class="row"><label>Arrangement</label>
       <select id="layoutSel">
-        <option value="full">colonna intera</option>
-        <option value="tophalf">metà alta</option>
-        <option value="half">metà bassa</option>
-        <option value="libero">libera (trascinala)</option>
+        <option value="full">full column</option>
+        <option value="tophalf">top half</option>
+        <option value="half">bottom half</option>
+        <option value="free">free (drag it)</option>
       </select></div>
-    <div class="row"><label>Lato</label>
+    <div class="row"><label>Side</label>
       <select id="sideSel">
-        <option value="right">destra</option>
-        <option value="left">sinistra</option>
+        <option value="right">right</option>
+        <option value="left">left</option>
       </select></div>
-    <div class="row"><label>Larghezza</label>
+    <div class="row"><label>Width</label>
       <input type="number" min="240" max="900" data-key="width"></div>
 
-    <div class="sec">Comportamento</div>
-    <div class="row"><label>Si smaterializza mentre lavori altrove</label>
+    <div class="sec">Behaviour</div>
+    <div class="row"><label>Fades out while you work elsewhere</label>
       <div class="sw" data-key="autoFade"></div></div>
-    <div class="row"><label>Quanto resta visibile</label>
+    <div class="row"><label>How visible it stays</label>
       <input type="range" id="fadeRange" min="0" max="100" step="5">
       <span class="val" id="fadeVal">32%</span></div>
-    <div class="row"><label>I click passano attraverso il vuoto</label>
+    <div class="row"><label>Clicks pass through empty space</label>
       <div class="sw" data-key="clickThrough"></div></div>
-    <div class="row"><label>Gli occhi seguono il mouse</label>
+    <div class="row"><label>Eyes follow the mouse</label>
       <div class="sw" data-key="eyesFollow"></div></div>
 
-    <div class="sec">Aspetto</div>
+    <div class="sec">Appearance</div>
     <div class="themes" id="themes">
-      <div class="th" data-theme="morbido">morbido</div>
+      <div class="th" data-theme="soft">soft</div>
       <div class="th" data-theme="pixel">pixel</div>
-      <div class="th" data-theme="minimale">minimale</div>
+      <div class="th" data-theme="minimal">minimal</div>
     </div>
-    <div class="row"><label for="s-swarm">Fantasmini attorno</label>
+    <div class="row"><label for="s-swarm">Little ghosts around</label>
       <div class="sw" id="s-swarm" data-key="swarm"></div></div>
-    <div class="row"><label for="s-pers">Reazioni e commenti</label>
+    <div class="row"><label for="s-pers">Reactions and remarks</label>
       <div class="sw" id="s-pers" data-key="personality"></div></div>
-    <div class="row"><label>Vestito</label>
+    <div class="row"><label>Outfit</label>
       <select id="skinSel" data-key="skin">
-        <option value="auto">automatico (stagione)</option>
-        <option value="off">nessuno</option>
-        <option value="santa">cappello di Babbo Natale</option>
-        <option value="winter">berretto invernale</option>
-        <option value="hearts">cuoricini</option>
-        <option value="bunny">orecchie da coniglio</option>
-        <option value="flowers">corona di fiori</option>
-        <option value="sunglasses">occhiali da sole</option>
-        <option value="witch">cappello da strega</option>
+        <option value="auto">automatic (seasonal)</option>
+        <option value="off">none</option>
+        <option value="santa">Santa hat</option>
+        <option value="winter">winter beanie</option>
+        <option value="hearts">little hearts</option>
+        <option value="bunny">bunny ears</option>
+        <option value="flowers">flower crown</option>
+        <option value="sunglasses">sunglasses</option>
+        <option value="witch">witch hat</option>
       </select></div>
     <div class="hint" id="skinHint"></div>
 
-    <div class="sec">Notifiche di sistema</div>
-    <div class="row"><label>Quando una sessione ti aspetta</label>
+    <div class="sec">System notifications</div>
+    <div class="row"><label>When a session is waiting for you</label>
       <div class="sw" data-key="notifications.waiting"></div></div>
-    <div class="row"><label>Quando una sessione ha risposto</label>
+    <div class="row"><label>When a session has replied</label>
       <div class="sw" data-key="notifications.replied"></div></div>
-    <div class="row"><label>Sessioni dimenticate</label>
+    <div class="row"><label>Forgotten sessions</label>
       <div class="sw" data-key="notifications.forgotten"></div></div>
-    <div class="row"><label>Suono</label>
+    <div class="row"><label>Sound</label>
       <div class="sw" data-key="notifications.sound"></div></div>
 
-    <div class="sec">Soglie</div>
-    <div class="row"><label>Troppe sessioni oltre</label>
+    <div class="sec">Thresholds</div>
+    <div class="row"><label>Too many sessions above</label>
       <input type="number" min="1" max="20" data-key="crowdLimit"></div>
-    <div class="row"><label>Dorme dopo (minuti)</label>
+    <div class="row"><label>Sleeps after (minutes)</label>
       <input type="number" min="1" max="600" data-key="sleepAfterMinutes"></div>
-    <div class="row"><label>Dimenticata dopo (ore)</label>
+    <div class="row"><label>Forgotten after (hours)</label>
       <input type="number" min="1" max="336" data-key="forgottenAfterHours"></div>
 
-    <div class="sec">Sistema</div>
-    <div class="row"><label>Avvio all'accensione del Mac</label>
+    <div class="sec">System</div>
+    <div class="row"><label>Launch when the Mac starts</label>
       <div class="sw" data-key="autostart"></div></div>
-    <div class="row"><label>Sempre in primo piano</label>
+    <div class="row"><label>Always on top</label>
       <div class="sw" data-key="alwaysOnTop"></div></div>
   </div>
 
@@ -516,20 +516,20 @@
 
       <ellipse cx="42" cy="80" rx="16" ry="3.2" fill="#000" opacity=".24"/>
 
-      <!-- alone del colore dello stato, dietro al corpo -->
+      <!-- halo in the state's colour, behind the body -->
       <ellipse id="halo" cx="42" cy="46" rx="33" ry="34" filter="url(#soft)"/>
 
-      <!-- corpo: la sagoma cambia con lo stato d'animo (vedi wardrobe.js).
-           #shape sta a parte per poter fare lo slancio elastico senza
-           litigare con il galleggiamento, che agisce su tutto l'svg -->
+      <!-- body: the silhouette follows the mood (see wardrobe.js).
+           #shape is its own group so the elastic overshoot doesn't fight
+           the floating animation, which acts on the whole svg -->
       <g id="shape">
         <path id="body" d=""/>
         <g id="deco"></g>
       </g>
 
       <g class="face">
-        <!-- #eyes muove lo sguardo, .blink fa le ciglia: due gruppi separati
-             perche' l'animazione CSS sovrascriverebbe la trasformazione -->
+        <!-- #eyes moves the gaze, .blink does the lashes: two separate groups,
+             because the CSS animation would otherwise override the transform -->
         <g id="eyes">
           <g class="blink" style="transform-origin:42px 44px">
             <ellipse class="eye" id="eyeL" cx="32" cy="44" rx="4.6" ry="5.8" fill="var(--outline)"/>
@@ -538,7 +538,7 @@
             <rect class="eyepx" x="48" y="39" width="8" height="9"/>
             <circle class="shine" cx="33.8" cy="42" r="1.6" fill="#fff" opacity=".95"/>
             <circle class="shine" cx="53.8" cy="42" r="1.6" fill="#fff" opacity=".95"/>
-            <!-- occhi felici (^ ^) e occhi addormentati: il CSS sceglie -->
+            <!-- happy eyes (^ ^) and sleeping eyes: the CSS picks -->
             <path class="eyearc"  d="M27.6 46 q4.4 -6.4 8.8 0"/>
             <path class="eyearc"  d="M47.6 46 q4.4 -6.4 8.8 0"/>
             <path class="eyeline" d="M27.6 43.6 q4.4 3.6 8.8 0"/>
@@ -551,10 +551,10 @@
               fill="none" stroke-linecap="round"/>
       </g>
 
-      <!-- microfono e riflettori: compaiono se accendi mic o telecamera -->
+      <!-- mic and spotlights: they appear when you switch on mic or camera -->
       <g id="props"></g>
 
-      <!-- skin stagionale: riempita dalla JS -->
+      <!-- seasonal outfit: filled in by JavaScript -->
       <g id="skin"></g>
 
       <g id="zzz" fill="#aab2be" font-size="10" font-weight="700" font-family="var(--font)">
@@ -573,34 +573,34 @@
     </svg>
   </div>
 
-  <div id="grab" title="Trascina per ridimensionare"></div>
+  <div id="grab" title="Drag to resize"></div>
 
 <script src="wardrobe.js"></script>
 <script>
 "use strict";
 
-// sagome e vestiti vivono in wardrobe.js, condiviso con la galleria
+// silhouettes and outfits live in wardrobe.js, shared with the gallery
 const {WARDROBE, pickShape, SKINS, skinForDate, flowerCrown} = window.Wardrobe;
 
 const COLOR = {working:'var(--working)',waiting:'var(--waiting)',replied:'var(--replied)',
                sleeping:'var(--sleeping)',crowded:'var(--crowded)'};
-/* Bocche: la "ω" gattina degli sticker, non un buco tondo.
-   `fill` distingue le bocche aperte (sorriso pieno) da quelle a tratto. */
+/* Mouths: the kitten "ω" from the stickers, not a round hole.
+   `fill` tells open mouths (a full grin) apart from drawn strokes. */
 const MOUTH = {
-  working:  {d:'M38 53.5 q2 2.6 4 0 q2 2.6 4 0', fill:'none'},   // ω concentrata
+  working:  {d:'M38 53.5 q2 2.6 4 0 q2 2.6 4 0', fill:'none'},   // focused ω
   waiting:  {d:'M39.6 53.4 q2.4 -1.6 4.8 0 q-0.6 3.4 -2.4 3.4 q-1.8 0 -2.4 -3.4 z',
-             fill:'var(--outline)'},                              // bocchina aperta, piccola
-  replied:  {d:'M36.5 52.6 q5.5 7 11 0 z', fill:'var(--outline)'},// sorrisone felice
-  sleeping: {d:'M39.6 54.4 q2.4 1.4 4.8 0', fill:'none'},         // riga morbida
-  crowded:  {d:'M37.4 55.4 q2.3 -2.6 4.6 0 q2.3 2.6 4.6 0', fill:'none'}, // ondina preoccupata
+             fill:'var(--outline)'},                              // small open mouth
+  replied:  {d:'M36.5 52.6 q5.5 7 11 0 z', fill:'var(--outline)'},// big happy grin
+  sleeping: {d:'M39.6 54.4 q2.4 1.4 4.8 0', fill:'none'},         // soft line
+  crowded:  {d:'M37.4 55.4 q2.3 -2.6 4.6 0 q2.3 2.6 4.6 0', fill:'none'}, // worried little wave
 };
-const LABEL = {working:'al lavoro',waiting:'aspetta te',replied:'ha risposto',sleeping:'dorme'};
+const LABEL = {working:'working',waiting:'waiting for you',replied:'replied',sleeping:'asleep'};
 
 const native = window.webkit?.messageHandlers?.app;
 const send = m => native && native.postMessage(m);
 const $ = s => document.querySelector(s);
 
-/** Fantasmino piccolo, inline: dentro <use> il CSS del documento non arriverebbe. */
+/** Little ghost, inlined: document CSS can't reach inside a <use> shadow tree. */
 function miniSVG(){
   return `<svg viewBox="0 0 22 24">
     <path class="mb" d="M3 12 A8 8 0 0 1 19 12 L19 17 Q17 22 15 17 Q13 22 11 17 Q9 22 7 17 Q5 22 3 17 Z"/>
@@ -615,7 +615,7 @@ function miniSVG(){
   </svg>`;
 }
 
-/** Tinge un mini fantasmino e gli chiude gli occhi se dorme. */
+/** Tints a little ghost and shuts its eyes if it's asleep. */
 const MINI_FILL = {working:'var(--fill-working)',waiting:'var(--fill-waiting)',
                    replied:'var(--fill-replied)',sleeping:'var(--fill-sleeping)'};
 function paintMini(host, state){
@@ -628,7 +628,7 @@ function paintMini(host, state){
   }
 }
 
-// ------------------------------------------------------------ skin e sagome
+// -------------------------------------------------------- outfits and shapes
 let shownSkin = null;
 function renderSkin(){
   const choice = settings.skin ?? 'auto';
@@ -643,11 +643,11 @@ function renderSkin(){
   if (crown) crown.innerHTML = flowerCrown();
 }
 
-/** Indossa una sagoma del guardaroba, con lo slancio giusto per il cambio. */
+/** Wears a silhouette from the wardrobe, with the right flourish for the change. */
 let wornShape = null;
 function wear(name){
   if (name === wornShape) return;
-  const first = wornShape === null;      // al primo avvio niente teatro
+  const first = wornShape === null;      // no theatrics on first paint
   wornShape = name;
 
   const s = WARDROBE[name] || WARDROBE.regular;
@@ -657,12 +657,12 @@ function wear(name){
   document.body.dataset.shape = name;
 
   if (first) return;
-  // diventando lunga si stira oltre misura e rimbalza; negli altri
-  // cambi d'abito basta un guizzo
+  // going maxi stretches past its size and springs back; every other
+  // outfit change just gets a twitch
   const g = $('#shape');
   const kind = (name === 'maxi') ? 'stretch' : 'pop';
   g.classList.remove('stretch', 'pop');
-  void g.getBoundingClientRect();         // forza il restart dell'animazione
+  void g.getBoundingClientRect();         // force the animation to restart
   g.classList.add(kind);
   setTimeout(() => g.classList.remove(kind), kind === 'stretch' ? 950 : 500);
 }
@@ -676,11 +676,11 @@ function ago(s){
   if (s < 86400) return Math.round(s/3600) + 'h';
   return Math.round(s/86400) + 'g';
 }
-/** Scrive solo se il valore e' cambiato: e' questo che evita il tremolio. */
+/** Only writes when the value actually changed: this is what kills the flicker. */
 function setText(el, v){ if (el && el.textContent !== v) el.textContent = v; }
 function setAttr(el, k, v){ if (el && el.getAttribute(k) !== String(v)) el.setAttribute(k, String(v)); }
 
-// ---------------------------------------------------------------- il fantasmino
+// --------------------------------------------------------------- the ghost
 let sayTimer = null;
 function say(msg, ms = 3600){
   const el = $('#say');
@@ -694,22 +694,22 @@ function react(kind){
   if (!settings.personality) return;
   const g = $('#big');
   g.classList.remove('hop','spin');
-  void g.offsetWidth;             // forza il restart dell'animazione
+  void g.offsetWidth;             // force the animation to restart
   g.classList.add(kind);
   setTimeout(() => g.classList.remove(kind), 800);
 }
 
-const POKES = ['bù!','ehi!','ciao','sono qui','uh!','buh!'];
+const POKES = ['boo!','hey!','hi','over here','ooh!','peekaboo!'];
 let lastData = null;
 
-/** Click sul fantasmino: se qualcuno ti aspetta ti ci porta, altrimenti gioca. */
+/** Clicking the ghost: if something is waiting it takes you there, otherwise it plays. */
 $('#stage').addEventListener('click', async ev => {
   if (ev.target.closest('#swarm')) return;
   const waiting = (lastData?.groups || []).flatMap(g => g.sessions)
                     .find(s => s.state === 'waiting');
   if (waiting){
     react('hop');
-    say(`Ti porto da «${waiting.name}»`, 2200);
+    say(`Taking you to “${waiting.name}”`, 2200);
     await post('/api/focus', {pid: waiting.pid});
     return;
   }
@@ -717,15 +717,15 @@ $('#stage').addEventListener('click', async ev => {
   if (settings.personality) say(POKES[Math.floor(Math.random()*POKES.length)], 1600);
 });
 
-// ------------------------------------------------------------ sguardo e scena
-/** Chiamata dal guscio nativo a ogni movimento del mouse, anche fuori. */
+// ----------------------------------------------------------- gaze and staging
+/** Called by the native shell on every mouse move, even outside the window. */
 window.lookAt = (x, y) => {
   const eyes = $('#eyes');
   if (!eyes) return;
   if (!(settings.eyesFollow ?? true)){ eyes.removeAttribute('transform'); return; }
   const svg = $('#big'), r = svg.getBoundingClientRect();
   if (!r.width) return;
-  const unit = 84 / r.width;                       // px dello schermo → unita' del disegno
+  const unit = 84 / r.width;                       // screen px → drawing units
   const cx = r.left + r.width / 2, cy = r.top + r.height * 0.46;
   const dx = (x - cx) * unit, dy = (y - cy) * unit;
   const d = Math.hypot(dx, dy) || 1;
@@ -734,7 +734,7 @@ window.lookAt = (x, y) => {
     `translate(${(dx / d * reach).toFixed(2)} ${(dy / d * reach * .75).toFixed(2)})`);
 };
 
-/** Microfono acceso → canta. Telecamera accesa → tappeto rosso. */
+/** Mic on → it sings. Camera on → red carpet. */
 const PROPS = {
   mic: `
     <g class="micprop">
@@ -772,22 +772,22 @@ window.setDevices = (mic, cam) => {
   document.body.dataset.cam = cam ? '1' : '0';
   $('#props').innerHTML = (cam ? PROPS.cam : '') + (mic ? PROPS.mic : '');
   if (settings.personality){
-    if (cam) say('Sotto i riflettori ✨', 3000);
-    else if (mic) say('Prova, prova… 🎤', 3000);
+    if (cam) say('In the spotlight ✨', 3000);
+    else if (mic) say('Testing, testing… 🎤', 3000);
   }
 };
 
-/** Elenco degli schermi, mandato dal guscio nativo. */
+/** List of displays, pushed over by the native shell. */
 window.setScreens = list => {
   const sel = $('#screenSel');
   const want = String(settings.screen ?? -1);
-  sel.innerHTML = '<option value="-1">principale (automatico)</option>' +
+  sel.innerHTML = '<option value="-1">main (automatic)</option>' +
     list.map(s => `<option value="${s.i}">${esc(s.name)} — ${s.size}${s.main ? ' ·' : ''}</option>`).join('');
   sel.value = want;
 };
 
-// ------------------------------------------------------------------ lo sciame
-/** Posizioni fisse per indice: i fantasmini non saltellano a ogni aggiornamento. */
+// -------------------------------------------------------------------- the swarm
+/** Fixed slots by index, so the ghosts don't hop about on every refresh. */
 function swarmSpot(i, n){
   const cols = Math.min(n, 9);
   const col = i % cols, row = Math.floor(i / cols);
@@ -829,19 +829,19 @@ function renderSwarm(all){
     if (!seen.has(pid)){ el.remove(); swarmNodes.delete(pid); }
 }
 
-// -------------------------------------------------------- elenco senza tremolio
+// ------------------------------------------------------------ flicker-free list
 const groupNodes = new Map();       // progetto -> {el, bubs:Map}
 
 function bubbleHTML(){
   return `<div class="mini">${miniSVG()}</div>
           <div class="txt"><div class="nme"></div><div class="act"></div></div>
-          <div class="ago"></div><div class="kill" title="Chiudi la sessione">✕</div>`;
+          <div class="ago"></div><div class="kill" title="Close this session">✕</div>`;
 }
 
 function updateBubble(el, s){
   if (el.dataset.s !== s.state){
     el.dataset.s = s.state;
-    el.title = LABEL[s.state] + (s.guessed ? ' (stima)' : '') + ' — clicca per aprire il terminale';
+    el.title = LABEL[s.state] + (s.guessed ? ' (guess)' : '') + ' — click to open its terminal';
     paintMini(el.querySelector('.mini'), s.state);
   }
   el.dataset.forgotten = s.forgotten ? '1' : '0';
@@ -857,7 +857,7 @@ function renderList(d){
 
   if (!groups.length){
     if (!host.querySelector('#empty')){
-      host.innerHTML = '<div id="empty">Nessuna sessione Claude attiva.<br>Apri un terminale e cominciamo.</div>';
+      host.innerHTML = '<div id="empty">No Claude sessions running.<br>Open a terminal and let\'s begin.</div>';
       groupNodes.clear();
     }
     return;
@@ -880,7 +880,7 @@ function renderList(d){
       rec = {el, bubs:new Map()};
       groupNodes.set(g.project, rec);
     }
-    // ordine dei gruppi senza ricostruire nulla
+    // reorder groups without rebuilding anything
     if (host.children[gi] !== rec.el) host.insertBefore(rec.el, host.children[gi] || null);
 
     rec.el.classList.toggle('crowded', !!g.crowded);
@@ -891,10 +891,10 @@ function renderList(d){
 
     const wb = rec.el.querySelector('.warnbox');
     const want = g.crowded
-      ? `<div class="warn">⚠︎ ${g.awake} sessioni sveglie qui — oltre ${d.crowdLimit} si accavallano</div>` : '';
+      ? `<div class="warn">⚠︎ ${g.awake} awake here — past ${d.crowdLimit} they start colliding</div>` : '';
     if (wb.innerHTML !== want) wb.innerHTML = want;
 
-    // bubble
+    // bubbles
     const box = rec.el.querySelector('.bubbles');
     const alive = new Set();
     g.sessions.forEach((s, si) => {
@@ -924,8 +924,8 @@ function drop(el){
   setTimeout(() => el.remove(), 260);
 }
 
-// ------------------------------------------------------------------ impostazioni
-let settings = {theme:'morbido', swarm:true, personality:true,
+// -------------------------------------------------------------------- settings
+let settings = {theme:'soft', swarm:true, personality:true,
                 notifications:{}, autostart:false, alwaysOnTop:true};
 
 function get(obj, path){ return path.split('.').reduce((o,k) => o?.[k], obj); }
@@ -935,7 +935,7 @@ function setPath(obj, path, v){
 }
 
 function paintSettings(){
-  document.body.dataset.theme = settings.theme || 'morbido';
+  document.body.dataset.theme = settings.theme || 'soft';
   document.querySelectorAll('.th').forEach(t =>
     t.classList.toggle('on', t.dataset.theme === settings.theme));
   document.querySelectorAll('.sw[data-key]').forEach(sw =>
@@ -958,7 +958,7 @@ function paintSettings(){
 
   const auto = skinForDate(new Date());
   setText($('#skinHint'), (settings.skin ?? 'auto') === 'auto'
-    ? (auto ? `In questo periodo: ${SKINS[auto].label}` : 'In questo periodo: nessun vestito')
+    ? (auto ? `Right now: ${SKINS[auto].label}` : 'Right now: no outfit')
     : '');
 }
 
@@ -973,7 +973,7 @@ async function pushSettings(patch){
     });
     settings = await r.json();
     paintSettings();
-  }catch(e){ /* riproviamo al prossimo giro */ }
+  }catch(e){ /* we'll try again next round */ }
 }
 
 document.querySelectorAll('.sw[data-key]').forEach(sw => {
@@ -996,7 +996,7 @@ document.querySelectorAll('.th').forEach(t => {
   t.onclick = () => pushSettings({theme: t.dataset.theme});
 });
 $('#skinSel').onchange   = e => pushSettings({skin: e.target.value});
-// il cursore scrive di continuo: aggiorna subito la scritta, salva a fine gesto
+// the slider fires constantly: update the label live, save when the gesture ends
 $('#fadeRange').oninput  = e => setText($('#fadeVal'), e.target.value + '%');
 $('#fadeRange').onchange = e => pushSettings({fadeOpacity: Number(e.target.value) / 100});
 $('#screenSel').onchange = e => pushSettings({screen: Number(e.target.value)});
@@ -1006,8 +1006,8 @@ $('#sideSel').onchange   = e => pushSettings({side: e.target.value});
 $('#gear').onclick = () => { $('#panel').classList.toggle('open'); sendHitRects(); };
 $('#close').onclick = () => send({type:'quit'});
 
-/** I rettangoli dove c'e' davvero qualcosa: fuori da questi il click passa
- *  all'app sotto, cosi' la finestra smette di comportarsi come un box. */
+/** The rectangles where something is actually drawn: outside them a click
+ *  falls through to the app below, so the window stops behaving like a box. */
 let lastRects = '';
 function sendHitRects(){
   const sel = ['#grip', '#panel.open', '.group', '#big', '#grab', '#say.on'];
@@ -1021,14 +1021,14 @@ function sendHitRects(){
     }
   }
   const key = JSON.stringify(rects);
-  if (key === lastRects) return;          // niente traffico inutile
+  if (key === lastRects) return;          // don't send the same thing twice
   lastRects = key;
   send({type:'hitrects', rects});
 }
 $('#list').addEventListener('scroll', sendHitRects);
 
-// Ridimensionando cambia anche il taglio (alta → lunga): va ricalcolato
-// subito, altrimenti lo slancio arriverebbe fino a due secondi dopo.
+// Resizing also changes the cut (tall → maxi), so it has to be recomputed
+// right away, otherwise the flourish would land up to two seconds late.
 let resizeTimer = null;
 window.addEventListener('resize', () => {
   sendHitRects();
@@ -1036,32 +1036,32 @@ window.addEventListener('resize', () => {
   resizeTimer = setTimeout(() => {
     if (lastData) wear(pickShape(lastData, {height: window.innerHeight,
                                             dndLook: settings.dndLook}));
-  }, 120);                                 // a ridimensionamento finito
+  }, 120);                                 // once resizing has settled
 });
 $('#dnd').onclick = () => {
   const on = !$('#dnd').classList.contains('on');
   pushSettings({dndUntil: on ? Math.floor(Date.now()/1000) + 3600 : 0});
-  say(on ? 'Non disturbare per un\'ora' : 'Torno a farmi sentire', 2400);
+  say(on ? 'Quiet for an hour' : 'Back on duty', 2400);
 };
 
-// ------------------------------------------------------------------ interazioni
+// ---------------------------------------------------------------- interactions
 $('#list').addEventListener('click', async ev => {
   const bub = ev.target.closest('.bub');
   if (!bub) return;
   const pid = Number(bub.dataset.pid);
 
-  // ✕ chiude la sessione, ma solo al secondo click
+  // ✕ closes the session, but only on the second click
   const kill = ev.target.closest('.kill');
   if (kill){
     ev.stopPropagation();
     if (!kill.classList.contains('armed')){
       kill.classList.add('armed');
-      kill.textContent = 'sicura?';
+      kill.textContent = 'sure?';
       setTimeout(() => { kill.classList.remove('armed'); kill.textContent = '✕'; }, 3000);
       return;
     }
     await post('/api/close', {pid});
-    say('Sessione chiusa', 2000);
+    say('Session closed', 2000);
     return;
   }
 
@@ -1070,8 +1070,8 @@ $('#list').addEventListener('click', async ev => {
   const j = await post('/api/focus', {pid});
   if (j && !j.ok)
     say(/not authoriz|1743|assistive/i.test(j.error || '')
-        ? 'Autorizza in Impostazioni › Privacy › Automazione'
-        : 'Terminale non trovato');
+        ? 'Allow it in Settings › Privacy › Automation'
+        : 'Terminal not found');
 });
 
 async function post(url, body){
@@ -1082,7 +1082,7 @@ async function post(url, body){
   }catch(e){ return null; }
 }
 
-// trascinamento: la barra e il fantasmino spostano la finestra
+// dragging: the bar and the ghost both move the window
 for (const id of ['grip','stage']){
   document.getElementById(id).addEventListener('mousedown', ev => {
     if (ev.target.closest('.ico')) return;
@@ -1091,13 +1091,13 @@ for (const id of ['grip','stage']){
 }
 $('#grab').addEventListener('mousedown', () => send({type:'resizestart'}));
 
-// ------------------------------------------------------------------------ ciclo
+// ------------------------------------------------------------------ main loop
 let lastMood = null, lastWaiting = 0, lastForgotten = 0;
 
 function render(d){
   if (d.settings){ settings = d.settings; paintSettings(); }
 
-  document.body.dataset.mood = d.mood;     // colore, alone e occhi li fa il CSS
+  document.body.dataset.mood = d.mood;     // colour, halo and eyes are all CSS
   wear(pickShape(d, {height: window.innerHeight, dndLook: settings.dndLook}));
   renderSkin();
   const m = MOUTH[d.mood] || MOUTH.sleeping;
@@ -1114,18 +1114,18 @@ function render(d){
   renderList(d);
   renderSwarm((d.groups || []).flatMap(g => g.sessions));
   lastData = d;
-  requestAnimationFrame(sendHitRects);   // dopo che il layout si e' assestato
+  requestAnimationFrame(sendHitRects);   // after the layout has settled
 
-  // commenti, solo quando cambia qualcosa di importante
+  // remarks, only when something noteworthy changes
   const w = c.waiting || 0;
   if (w > lastWaiting)
-    say(w === 1 ? 'Una sessione aspetta te' : `${w} sessioni aspettano te`);
+    say(w === 1 ? 'A session is waiting for you' : `${w} sessions are waiting for you`);
   else if (d.mood === 'crowded' && lastMood !== 'crowded')
-    say(`Troppe sessioni su ${d.crowded[0]}`);
+    say(`Too many sessions on ${d.crowded[0]}`);
   else if (d.forgotten > lastForgotten && d.forgotten > 2 && settings.personality)
-    say(`${d.forgotten} sessioni dimenticate da un pezzo`);
+    say(`${d.forgotten} sessions forgotten a while ago`);
   else if (d.mood === 'sleeping' && lastMood && lastMood !== 'sleeping')
-    say('Tutto tranquillo');
+    say('All quiet');
   lastWaiting = w; lastMood = d.mood; lastForgotten = d.forgotten || 0;
 }
 
@@ -1133,9 +1133,9 @@ async function tick(){
   try{
     const r = await fetch('/api/sessions', {cache:'no-store'});
     render(await r.json());
-  }catch(e){ /* il server riparte da solo, riproviamo al giro dopo */ }
+  }catch(e){ /* the server restarts on its own, we'll retry next round */ }
 }
-send({type:'ready'});      // chiede schermi e stato dei dispositivi
+send({type:'ready'});      // ask for displays and device state
 tick();
 setInterval(tick, 2000);
 </script>
