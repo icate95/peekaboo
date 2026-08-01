@@ -68,6 +68,7 @@ DEFAULTS = {
     "screen": -1,                   # -1 = main display, otherwise an index
     "side": "right",                # right | left
     "width": 340,
+    "collapsed": False,             # folded down to the thin rail on the side
     "autoFade": True,               # fades out while you work elsewhere
     "fadeOpacity": 0.32,
     "eyesFollow": True,             # the eyes follow the mouse

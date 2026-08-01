@@ -37,7 +37,7 @@ project**, one bubble each, every bubble carrying a little ghost in the colour
 of its own state:
 
 ```
-╭─ PEEKABOO ──────────── ●2 ●1 ●14  ☾ ⚙ ✕ ╮
+╭─ PEEKABOO ────────── ●2 ●1 ●14  › ☾ ⚙ ✕ ╮
 ╰──────────────────────────────────────────╯
 ╭─ donne-di-montagna ───────────────── 2/8 ╮
 │  👻 zoho orders      running: sync…   4s │
@@ -150,6 +150,22 @@ its "solid" rectangles to the native shell, which does the filtering.
 
 **The eyes follow your mouse**, wherever it is on screen.
 
+**Fold it away.** The `›` on the bar folds the whole column down to a thin rail
+on your side of the screen: the counters stacked one above the other, one little
+ghost in the colour of the moment, and nothing else. The rail rings amber while
+a session is waiting for you. Click it and everything comes back. The window
+never moves or resizes — the rest of the screen simply belongs to whatever is
+underneath again. Folded or open is remembered across restarts.
+
+```
+╭──╮
+│●2│
+│●1│    ← folded: about 28 pixels wide
+│●5│
+│👻│
+╰──╯
+```
+
 ### Microphone and camera
 
 Switch on your microphone and the ghost pulls out a mic and hums along; switch
@@ -255,6 +271,7 @@ The panel opens with the ⚙. Everything is saved to
 | Display | which monitor it lives on |
 | Arrangement | full column, top half, bottom half, free |
 | Side and width | left or right, and how wide |
+| Folded | set by the `›` on the bar, remembered across restarts |
 | Fades out | dims while you work in another app |
 | How visible it stays | 0–100% |
 | Clicks pass through | click-through wherever nothing is drawn |
@@ -279,7 +296,9 @@ it.
 **`~/.claude/sessions/<pid>.json`** — one entry per live session, with `pid`,
 `sessionId`, `cwd`, its `status` (`busy` / `idle`), the last-updated timestamp,
 and the `name` Claude generates for itself (*"fix products"*, *"ai next step"*).
-That name becomes the bubble's title.
+That name becomes the bubble's title — rename a session with `/rename` and
+Claude Code writes the new name into this same file, so the bubble follows
+within a couple of seconds.
 
 **`~/.claude/projects/<project>/<sessionId>.jsonl`** — the full transcript.
 Peekaboo reads only the tail (~180 KB) and works out what's happening right now:

@@ -5,6 +5,17 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Folded mode.** The `›` on the bar collapses the column down to a thin rail
+  on the chosen side — stacked counters, one little ghost, an amber ring while
+  something is waiting. Click the rail to open it back up. The window is never
+  moved or resized: everything else is hidden and the hit rectangles shrink to
+  the rail, so the screen underneath goes back to the app below. Saved as
+  `collapsed` in the settings, so it survives a restart.
+
 ## [1.0.0] — 2026-07-31
 
 First public release.

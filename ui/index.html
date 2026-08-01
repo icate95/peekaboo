@@ -394,6 +394,48 @@
 
   #empty{text-align:center;color:var(--dim);font-size:11.5px;padding:22px 10px;line-height:1.6}
 
+  /* ---------------------------------------------------------- collapsed rail
+     Folded, the whole column becomes a thin strip on the chosen side: the
+     counters and a little ghost, nothing else. The window itself never moves
+     or resizes — everything else is simply hidden and the hit rectangles
+     shrink to the rail, so the rest of the screen goes back to the app below. */
+  :root{--fold-x:14px}
+  body[data-side=left]{--fold-x:-14px}
+
+  #rail{
+    display:none;flex:0 0 auto;flex-direction:column;align-items:center;
+    width:28px;padding:8px 0 9px;gap:7px;align-self:flex-end;
+    cursor:pointer;transition:border-color .3s,box-shadow .3s;
+  }
+  body[data-side=left] #rail{align-self:flex-start}
+  #rail:hover{border-color:rgba(255,255,255,.22)}
+  #rail.alert{
+    border-color:rgba(255,181,71,.55);
+    box-shadow:0 0 18px -5px rgba(255,181,71,.55);
+  }
+  #railTally{
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+    font-size:9.5px;line-height:1;font-variant-numeric:tabular-nums;
+  }
+  #railTally span{display:flex;flex-direction:column;align-items:center;gap:2px}
+  #railTally i{width:6px;height:6px;border-radius:50%;background:currentColor;font-style:normal}
+  body[data-mood=working] #railGhost{animation:bob 1.5s ease-in-out infinite}
+  body[data-mood=waiting] #railGhost{animation:bob .8s ease-in-out infinite}
+  body[data-mood=replied] #railGhost{animation:bob 3s ease-in-out infinite}
+  body[data-mood=sleeping] #railGhost{opacity:.55}
+
+  body.rail #grip,body.rail #panel,body.rail #list,body.rail #stage,body.rail #grab{display:none}
+  body.rail #rail{display:flex;animation:railIn .3s cubic-bezier(.2,1.3,.4,1) both}
+  @keyframes railIn{from{opacity:0;transform:scale(.55)}to{opacity:1;transform:none}}
+
+  /* the column slides towards its side on the way out, and back on the way in */
+  body.folding #grip,body.folding #panel,body.folding #list,body.folding #stage{
+    animation:foldOut .2s ease both}
+  body.unfolding #grip,body.unfolding #panel,body.unfolding #list,body.unfolding #stage{
+    animation:foldIn .28s ease both}
+  @keyframes foldOut{to{opacity:0;transform:translateX(var(--fold-x)) scale(.97)}}
+  @keyframes foldIn{from{opacity:0;transform:translateX(var(--fold-x)) scale(.97)}}
+
   /* resize handle */
   #grab{
     position:fixed;right:2px;bottom:2px;width:16px;height:16px;
@@ -413,6 +455,7 @@
     <span class="ttl">PEEKABOO</span>
     <div class="spacer"></div>
     <div id="tally"></div>
+    <span class="ico" id="fold" title="Fold it down to the side">›</span>
     <span class="ico" id="dnd"  title="Do not disturb">☾</span>
     <span class="ico" id="gear" title="Settings">⚙</span>
     <span class="ico" id="close" title="Close">✕</span>
@@ -583,6 +626,12 @@
     </svg>
   </div>
 
+  <!-- what's left of the column once it's folded; click it to bring it back -->
+  <div id="rail" class="card" title="Click to open Peekaboo back up">
+    <div id="railTally"></div>
+    <div id="railGhost" class="mini"></div>
+  </div>
+
   <div id="grab" title="Drag to resize"></div>
 
 <script src="wardrobe.js"></script>
@@ -627,7 +676,8 @@ function miniSVG(){
 
 /** Tints a little ghost and shuts its eyes if it's asleep. */
 const MINI_FILL = {working:'var(--fill-working)',waiting:'var(--fill-waiting)',
-                   replied:'var(--fill-replied)',sleeping:'var(--fill-sleeping)'};
+                   replied:'var(--fill-replied)',sleeping:'var(--fill-sleeping)',
+                   crowded:'var(--fill-crowded)'};
 function paintMini(host, state){
   if (host.dataset.st === state) return;
   host.dataset.st = state;
@@ -839,6 +889,56 @@ function renderSwarm(all){
     if (!seen.has(pid)){ el.remove(); swarmNodes.delete(pid); }
 }
 
+// ------------------------------------------------------------- collapsed rail
+$('#railGhost').innerHTML = miniSVG();
+
+/** The rail carries the same tally as the bar, stacked, plus one ghost in the
+ *  colour of the mood. Amber ring when something is waiting for you. */
+function renderRail(d){
+  const c = d.counts || {};
+  const want = ['working','waiting','replied','sleeping'].filter(k => c[k])
+    .map(k => `<span class="t-${k}"><i></i>${c[k]}</span>`).join('');
+  const t = $('#railTally');
+  if (t.innerHTML !== want) t.innerHTML = want;
+  $('#rail').classList.toggle('alert', (c.waiting || 0) > 0);
+  paintMini($('#railGhost'), d.mood);
+}
+
+/** Reflects the saved state. Idempotent: it runs on every poll. */
+function applyCollapsed(){
+  const want = !!settings.collapsed;
+  if (document.body.classList.contains('rail') === want) return;
+  document.body.classList.toggle('rail', want);
+  requestAnimationFrame(sendHitRects);
+}
+
+/** Folds and unfolds with the little slide. The state is saved, so it survives
+ *  a restart; the window is never moved or resized. */
+let foldTimer = null;
+function toggleFold(){
+  const to = !settings.collapsed;
+  const b = document.body;
+  clearTimeout(foldTimer);
+  b.classList.remove('folding','unfolding');
+  void b.offsetWidth;                     // restart the animation
+  b.classList.add(to ? 'folding' : 'unfolding');
+  foldTimer = setTimeout(() => b.classList.remove('folding','unfolding'), to ? 220 : 300);
+  // folding: let the column slide out first, then swap in the rail
+  if (to){ $('#panel').classList.remove('open'); setTimeout(() => pushSettings({collapsed:true}), 190); }
+  else pushSettings({collapsed:false});
+}
+
+$('#fold').onclick = toggleFold;
+
+// A drag on the rail moves the window, so only count it as a click if the
+// mouse stayed put.
+let railDown = null;
+$('#rail').addEventListener('mousedown', ev => { railDown = [ev.screenX, ev.screenY]; });
+$('#rail').addEventListener('click', ev => {
+  if (railDown && Math.hypot(ev.screenX - railDown[0], ev.screenY - railDown[1]) > 4) return;
+  toggleFold();
+});
+
 // ------------------------------------------------------------ flicker-free list
 const groupNodes = new Map();       // progetto -> {el, bubs:Map}
 
@@ -946,6 +1046,9 @@ function setPath(obj, path, v){
 
 function paintSettings(){
   document.body.dataset.theme = settings.theme || 'soft';
+  document.body.dataset.side = settings.side || 'right';
+  setText($('#fold'), (settings.side || 'right') === 'left' ? '‹' : '›');
+  applyCollapsed();
   document.querySelectorAll('.th').forEach(t =>
     t.classList.toggle('on', t.dataset.theme === settings.theme));
   document.querySelectorAll('.sw[data-key]').forEach(sw =>
@@ -1022,7 +1125,9 @@ $('#close').onclick = () => send({type:'quit'});
  *  falls through to the app below, so the window stops behaving like a box. */
 let lastRects = '';
 function sendHitRects(){
-  const sel = ['#grip', '#panel.open', '.group', '#big', '#grab', '#say.on'];
+  const sel = document.body.classList.contains('rail')
+    ? ['#rail']
+    : ['#grip', '#panel.open', '.group', '#big', '#grab', '#say.on'];
   const rects = [];
   for (const s of sel){
     for (const el of document.querySelectorAll(s)){
@@ -1095,7 +1200,7 @@ async function post(url, body){
 }
 
 // dragging: the bar and the ghost both move the window
-for (const id of ['grip','stage']){
+for (const id of ['grip','stage','rail']){
   document.getElementById(id).addEventListener('mousedown', ev => {
     if (ev.target.closest('.ico')) return;
     send({type:'dragstart'});
@@ -1125,6 +1230,7 @@ function render(d){
 
   renderList(d);
   renderSwarm((d.groups || []).flatMap(g => g.sessions));
+  renderRail(d);
   lastData = d;
   requestAnimationFrame(sendHitRects);   // after the layout has settled
 
